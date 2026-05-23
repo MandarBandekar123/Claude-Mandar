@@ -1,0 +1,172 @@
+// Strategy: F40d C104 — FUNDED SPOT (risk-based sizing + kill switches)
+// Use on: BINANCE:ETHUSDT, COINBASE:ETHUSD, or any spot ETH pair
+// NOT for perpetual contracts — use strategy_v2_funded.pine (perp) instead.
+//
+// Difference from perp version:
+//   - Uses request.security("D", ema(200)) for true daily 200-EMA
+//   - Requires TV Essential+ plan for sufficient bar history
+//   - More accurate HTF regime signal on spot (no funding rate distortion)
+//@version=5
+strategy("F40d C104 — FUNDED (Spot)", overlay=true,
+     initial_capital=100000,
+     commission_type=strategy.commission.percent, commission_value=0.04,
+     slippage=2,
+     pyramiding=0,
+     process_orders_on_close=true,
+     default_qty_type=strategy.fixed)
+
+// === Risk / funded inputs ===
+riskPct      = input.float(0.5, "Risk % per trade",  minval=0.1, maxval=2.0, step=0.05, group="Funded Risk")
+maxDailyLoss = input.float(2.0, "Max Daily Loss %",  minval=0.5, maxval=5.0, step=0.25, group="Funded Risk")
+maxTotalDD   = input.float(5.0, "Max Trailing DD %", minval=2.0, maxval=12.0, step=0.5, group="Funded Risk")
+ddBuffer     = input.float(0.8, "Kill-switch trigger (fraction of limit)", minval=0.5, maxval=1.0, step=0.05, group="Funded Risk")
+
+// === Strategy inputs (unchanged edge) ===
+adxThresh  = input.int(20,    "ADX Threshold",         minval=8,  maxval=35,  step=1,    group="Strategy")
+slPct      = input.float(2.0, "Stop Loss %",           minval=1.0, maxval=5.0, step=0.25, group="Strategy")
+tpPct      = input.float(5.0, "Take Profit %",         minval=3.0, maxval=12.0, step=0.5, group="Strategy")
+expansionZ = input.float(1.0, "Expansion Z-Threshold", minval=0.5, maxval=2.0, step=0.1,  group="Strategy")
+minVelZ    = input.float(0.5, "Min Velocity Z-Score",  minval=0.2, maxval=1.5, step=0.1,  group="Strategy")
+detrendLen = input.int(50,    "Detrend Length",        minval=30, maxval=70,  step=5,     group="Strategy")
+useShorts  = input.bool(true, "Enable Shorts",         group="Strategy")
+
+// === ADX ===
+adxLen          = 14
+tr              = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))
+upMove          = high - nz(high[1], high)
+downMove        = nz(low[1], low) - low
+plusDM          = upMove > downMove and upMove > 0 ? upMove : 0
+minusDM         = downMove > upMove and downMove > 0 ? downMove : 0
+smoothedTR      = ta.rma(tr, adxLen)
+smoothedPlusDM  = ta.rma(plusDM, adxLen)
+smoothedMinusDM = ta.rma(minusDM, adxLen)
+plusDI          = 100 * smoothedPlusDM  / (smoothedTR + 1e-10)
+minusDI         = 100 * smoothedMinusDM / (smoothedTR + 1e-10)
+dx              = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI + 1e-10)
+adx             = ta.rma(dx, adxLen)
+
+// === Regime — true daily 200-EMA via request.security ===
+// Requires TV Essential+ for full bar history. On free/basic plans use the perp version.
+htfEMA200  = request.security(syminfo.tickerid, "D", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+regimeBull = close > htfEMA200
+sideways   = adx < adxThresh
+
+// === Envelope + velocity ===
+envBaseLen   = 150
+envSmoothLen = 10
+envSlopeLen  = 10
+priceVelLen  = 5
+trend   = ta.sma(close, detrendLen)
+osc     = nz(close - trend)
+quad    = 0.0962 * osc + 0.5769 * nz(osc[2]) - 0.5769 * nz(osc[4]) - 0.0962 * nz(osc[6])
+envInst = math.sqrt(osc * osc + quad * quad)
+env     = ta.ema(envInst, envSmoothLen)
+envSlope     = env - nz(env[envSlopeLen], env)
+envSlopeMean = nz(ta.sma(envSlope, envBaseLen))
+envSlopeStd  = ta.stdev(envSlope, envBaseLen)
+envExpZ      = (envSlope - envSlopeMean) / math.max(nz(envSlopeStd), 1e-10)
+priceVel     = close - nz(close[priceVelLen], close)
+priceVelMean = nz(ta.sma(priceVel, envBaseLen))
+priceVelStd  = ta.stdev(priceVel, envBaseLen)
+priceVelZ    = (priceVel - priceVelMean) / math.max(nz(priceVelStd), 1e-10)
+
+expansionEdge = ta.crossover(envExpZ, expansionZ)
+ready         = bar_index > detrendLen + envBaseLen + 50
+
+goLong  = expansionEdge and priceVel > 0 and math.abs(priceVelZ) > minVelZ and regimeBull and not sideways
+goShort = expansionEdge and priceVel < 0 and math.abs(priceVelZ) > minVelZ and not sideways
+
+// === Funded risk engine ===
+var float peakEquity = na
+var float dayStartEq = na
+var int   lastDay    = na
+var bool  dayHalted  = false   // resets each day
+var bool  ddHalted   = false   // permanent for the run (account breached)
+
+if na(peakEquity)
+    peakEquity := strategy.equity
+    dayStartEq := strategy.equity
+
+// New trading day → reset daily halt and daily baseline
+curDay = dayofmonth + month * 100 + year * 10000
+if na(lastDay) or curDay != lastDay
+    dayStartEq := strategy.equity
+    dayHalted  := false
+    lastDay    := curDay
+
+if strategy.equity > peakEquity
+    peakEquity := strategy.equity
+
+totalDD   = (peakEquity - strategy.equity) / math.max(peakEquity, 1e-10) * 100
+dailyLoss = (dayStartEq - strategy.equity) / math.max(dayStartEq, 1e-10) * 100
+
+// Kill switches fire at ddBuffer fraction of the hard limit (safety margin)
+if dailyLoss >= maxDailyLoss * ddBuffer
+    dayHalted := true
+if totalDD >= maxTotalDD * ddBuffer
+    ddHalted := true
+
+tradingHalted = dayHalted or ddHalted
+
+// Flatten immediately if a kill switch trips while in a position
+if tradingHalted and strategy.position_size != 0
+    strategy.close_all(comment = ddHalted ? "DD-KILL" : "DAILY-KILL")
+
+// === Position size — fixed % risk ===
+// qty such that a full stop-out loses exactly riskPct of current equity
+effQty = (strategy.equity * riskPct / 100.0) / math.max(close * slPct / 100.0, 1e-10)
+
+// === Exits on edge / regime (only when not halted) ===
+if not tradingHalted
+    if not regimeBull and strategy.position_size > 0
+        strategy.close("Long", comment="bear-exit")
+    if sideways and strategy.position_size > 0
+        strategy.close("Long",  comment="sideways-exit")
+        strategy.close("Short", comment="sideways-exit")
+    if goShort and strategy.position_size > 0
+        strategy.close("Long", comment="flip-short")
+    if goLong and strategy.position_size < 0
+        strategy.close("Short", comment="flip-long")
+
+// === Entries (blocked when halted) ===
+if not tradingHalted and ready
+    if goLong
+        strategy.entry("Long", strategy.long, qty=effQty)
+    if useShorts and goShort
+        strategy.entry("Short", strategy.short, qty=effQty)
+
+// === Bracket exits ===
+strategy.exit("L-brk", from_entry="Long",
+     limit=strategy.position_avg_price * (1 + tpPct / 100),
+     stop =strategy.position_avg_price * (1 - slPct / 100))
+if useShorts
+    strategy.exit("S-brk", from_entry="Short",
+         limit=strategy.position_avg_price * (1 - tpPct / 100),
+         stop =strategy.position_avg_price * (1 + slPct / 100))
+
+// === Visuals ===
+plot(htfEMA200, "Daily 200-EMA", color=color.purple, linewidth=2)
+bgcolor(regimeBull ? color.new(color.green, 95) : color.new(color.red, 95))
+bgcolor(ddHalted  ? color.new(color.red, 75)    : na, title="DD kill")
+bgcolor(dayHalted and not ddHalted ? color.new(color.orange, 80) : na, title="Daily kill")
+
+// === Dashboard ===
+var table dash = table.new(position.top_right, 2, 7, border_width=1, frame_color=color.gray, frame_width=1)
+if barstate.islast
+    bg = color.new(color.black, 80)
+    table.cell(dash, 0, 0, "FUNDED RISK (SPOT)", text_color=color.white, bgcolor=color.new(color.blue, 50))
+    table.cell(dash, 1, 0, "",                   text_color=color.white, bgcolor=color.new(color.blue, 50))
+    table.cell(dash, 0, 1, "Net P&L %",   text_color=color.gray, bgcolor=bg)
+    netpct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+    table.cell(dash, 1, 1, str.tostring(netpct, "#.##") + "%", text_color=netpct >= 0 ? color.green : color.red, bgcolor=bg)
+    table.cell(dash, 0, 2, "Max DD %",    text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 2, str.tostring(totalDD, "#.##") + " / " + str.tostring(maxTotalDD, "#.#"), text_color=totalDD >= maxTotalDD ? color.red : color.green, bgcolor=bg)
+    table.cell(dash, 0, 3, "Worst Daily", text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 3, str.tostring(dailyLoss, "#.##") + " / " + str.tostring(maxDailyLoss, "#.#"), text_color=dailyLoss >= maxDailyLoss ? color.red : color.green, bgcolor=bg)
+    table.cell(dash, 0, 4, "Risk/Trade",  text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 4, str.tostring(riskPct, "#.##") + "%", text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 5, "Trades",      text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 5, str.tostring(strategy.closedtrades), text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 6, "Status",      text_color=color.gray, bgcolor=bg)
+    statusTxt = ddHalted ? "DD BREACH" : "ACTIVE"
+    table.cell(dash, 1, 6, statusTxt, text_color=ddHalted ? color.red : color.green, bgcolor=bg)
