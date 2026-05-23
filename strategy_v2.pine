@@ -75,7 +75,7 @@ signalMult = math.max(1.0, math.min(3.0, math.abs(priceVelZ) / 1.0))
 var float streakMult = 1.0
 var float eqAtEntry  = na
 var float peakEquity = na    // #3: track equity high-water mark
-var int   prevPos    = 0
+var float prevPos    = 0.0
 
 // #3: maintain equity peak and reset streakMult on drawdown breach
 if na(peakEquity)
