@@ -8,7 +8,7 @@
 //@version=5
 strategy("F40d C104 — FUNDED", overlay=true,
      initial_capital=100000,
-     commission_type="percent", commission_value=0.04,
+     commission_type=strategy.commission.percent, commission_value=0.04,
      slippage=2,
      pyramiding=0,
      process_orders_on_close=true,
@@ -50,7 +50,10 @@ regimeBull = close > htfEMA200
 sideways   = adx < adxThresh
 
 // === Envelope + velocity ===
-envBaseLen = 150, envSmoothLen = 10, envSlopeLen = 10, priceVelLen = 5
+envBaseLen   = 150
+envSmoothLen = 10
+envSlopeLen  = 10
+priceVelLen  = 5
 trend   = ta.sma(close, detrendLen)
 osc     = nz(close - trend)
 quad    = 0.0962 * osc + 0.5769 * nz(osc[2]) - 0.5769 * nz(osc[4]) - 0.0962 * nz(osc[6])
