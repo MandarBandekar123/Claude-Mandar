@@ -1,0 +1,89 @@
+{
+  "resultId": "01KSAVB7YPBTTC0PVB0Z2ZRJ0S",
+  "jobId": "adhoc_01KSAVB7YPG09Z6E8AMA5VVGKX",
+  "strategyId": "01KSAVB87MCZ22GCW5BKGTYR8K",
+  "userId": "user_3DlUMn8gzqzXAxSNnsFDD1uw7sY",
+  "symbol": "ETHUSDT",
+  "timeframe": "60",
+  "fromDate": "2024-01-01",
+  "toDate": "2026-05-13",
+  "initialCapital": 100000,
+  "commissionPct": 0.04,
+  "slippageTicks": 2,
+  "params": {
+    "riskPct": 0.5,
+    "maxDailyLoss": 2.0,
+    "maxTotalDD": 5.0,
+    "ddBuffer": 0.8,
+    "adxThresh": 20,
+    "slPct": 2.0,
+    "tpPct": 5.0,
+    "expansionZ": 1.0,
+    "minVelZ": 0.5,
+    "detrendLen": 50,
+    "useShorts": true
+  },
+  "kpis": {
+    "netProfitPct": 20.61,
+    "netProfitUSD": 20605,
+    "profitFactor": 1.94,
+    "maxDrawdownPct": 3.17,
+    "maxDrawdownUSD": 3888,
+    "winRate": 46.15,
+    "numTrades": 78,
+    "numLongs": 15,
+    "numShorts": 63,
+    "longsNetUSD": -3635,
+    "longsWins": 4,
+    "shortsNetUSD": 24240,
+    "shortsWins": 32,
+    "sharpe": 2.38,
+    "sortino": 1.01,
+    "largestSingleLossPct": -1.24,
+    "largestSingleLossUSD": -1241,
+    "cascadeRatio": 1.0
+  },
+  "fundedPlatformCompliance": {
+    "apexTopstep": {
+      "maxDDLimit": 6.0,
+      "maxDailyLimit": 2.0,
+      "actualMaxDD": 3.17,
+      "largestSingleTradePct": 1.24,
+      "pass": true,
+      "headroomPct": 2.83,
+      "note": "Max DD 3.17% vs 6% limit — 47% headroom"
+    },
+    "myFundedFX": {
+      "maxDDLimit": 8.0,
+      "maxDailyLimit": 4.0,
+      "actualMaxDD": 3.17,
+      "pass": true,
+      "headroomPct": 4.83
+    },
+    "ftmo": {
+      "maxDDLimit": 10.0,
+      "maxDailyLimit": 5.0,
+      "actualMaxDD": 3.17,
+      "pass": true,
+      "headroomPct": 6.83
+    }
+  },
+  "vsFixedSizingBaseline": {
+    "baselineResultId": "01KSASQCS74WB3DR3RQ756VSPT",
+    "baselineInitialCapital": 10000,
+    "baselineNetProfitPct": 2371.75,
+    "baselinePF": 2.00,
+    "baselineMaxDDPct": 18.36,
+    "baselineWinRate": 46.15,
+    "baselineTrades": 78,
+    "deltaMaxDD": -15.19,
+    "deltaPF": -0.06,
+    "note": "Same 78 trades, same WR — only sizing changed. MaxDD collapsed 18.36% → 3.17% by capping risk at 0.5% per trade."
+  },
+  "notes": [
+    "Two Pine compilation fixes applied (same as fixed-100 variant): commission_type constant + EMA(4800) HTF proxy",
+    "Multi-var declaration split to one-per-line (Pine v5 requirement)",
+    "if-block indentation restored — critical for kill-switch logic correctness",
+    "Kill switch: halts at 1.6% daily loss (0.8 × 2%) and 4.0% total DD (0.8 × 5%)"
+  ]
+}
