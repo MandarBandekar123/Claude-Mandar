@@ -45,7 +45,8 @@ dx              = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI + 1e-10)
 adx             = ta.rma(dx, adxLen)
 
 // === Regime ===
-htfEMA200  = request.security(syminfo.tickerid, "D", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+// 4800-bar 1H EMA = 200-day EMA proxy — works on perpetuals without request.security
+htfEMA200  = ta.ema(close, 4800)
 regimeBull = close > htfEMA200
 sideways   = adx < adxThresh
 
