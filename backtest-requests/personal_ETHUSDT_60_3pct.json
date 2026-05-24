@@ -1,6 +1,6 @@
 {
   "id": "personal_ETHUSDT_60_3pct",
-  "status": "done",
+  "status": "pending",
   "description": "Personal strategy equity-scaled 3% base risk, ETHUSDT 1H, full history",
   "pineFile": "strategy_v2_personal.pine",
   "symbol": "ETHUSDT",
@@ -9,8 +9,5 @@
   "toDate": "2026-05-13",
   "initialCapital": 10000,
   "createdAt": "2026-05-24T00:00:00Z",
-  "retriggeredAt": "2026-05-24T21:00:00Z",
-  "resultFile": "backtest_results/personal_ETHUSDT_60_3pct.json",
-  "resultId": "01KSDQADQ6D34M1BAGZWRJGATE",
-  "completedAt": "2026-05-24T19:27:49.200Z"
+  "retriggeredAt": "2026-05-24T21:10:00Z"
 }
