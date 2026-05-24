@@ -1,0 +1,135 @@
+// Strategy: F40d C104 — FIXED $2k BASE
+// Identical to strategy_v2.pine (original) with two changes:
+//   1. baseCash = 2000.0 (was 30000.0)
+//   2. Compilation fixes for trader-dev: commission constant + EMA proxy
+//@version=5
+strategy("F40d C104 — Fixed $5000 Base", overlay=true,
+     initial_capital=10000,
+     commission_type=strategy.commission.percent, commission_value=0.04,
+     slippage=2, pyramiding=0, process_orders_on_close=true)
+
+adxThresh  = input.int(20,    "ADX Threshold",         minval=8,  maxval=35,  step=1)
+slPct      = input.float(2.0, "Stop Loss %",           minval=1.0, maxval=5.0, step=0.25)
+tpPct      = input.float(5.0, "Take Profit %",         minval=3.0, maxval=12.0, step=0.5)
+growthRate = input.float(2.0, "Streak Growth Rate",    minval=1.1, maxval=2.5, step=0.1)
+decayRate  = input.float(0.9, "Streak Decay Rate",     minval=0.2, maxval=0.9, step=0.1)
+expansionZ = input.float(1.0, "Expansion Z-Threshold", minval=0.5, maxval=2.0, step=0.1)
+minVelZ    = input.float(0.5, "Min Velocity Z-Score",  minval=0.2, maxval=1.5, step=0.1)
+detrendLen = input.int(50,    "Detrend Length",        minval=30,  maxval=70,  step=5)
+ddResetPct = input.float(5.0, "Streak Reset DD %",     minval=1.0, maxval=15.0, step=0.5)
+
+adxLen          = 14
+tr              = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))
+up              = high - nz(high[1], high)
+down            = nz(low[1], low) - low
+plusDM          = up > down and up > 0 ? up : 0
+minusDM         = down > up and down > 0 ? down : 0
+smoothedTR      = ta.rma(tr, adxLen)
+smoothedPlusDM  = ta.rma(plusDM, adxLen)
+smoothedMinusDM = ta.rma(minusDM, adxLen)
+plusDI          = 100 * smoothedPlusDM  / (smoothedTR + 1e-10)
+minusDI         = 100 * smoothedMinusDM / (smoothedTR + 1e-10)
+dx              = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI + 1e-10)
+adx             = ta.rma(dx, adxLen)
+
+// 200-day EMA proxy via 4800-bar 1H EMA — avoids request.security bar limit on perps
+htfEMA200  = ta.ema(close, 4800)
+regimeBull = close > htfEMA200
+sideways   = adx < adxThresh
+
+envSmoothLen = 10
+envSlopeLen  = 10
+envBaseLen   = 150
+priceVelLen  = 5
+useShorts    = true
+baseCash     = 5000.0
+amMultCap    = 3.0
+
+atr14    = ta.atr(14)
+normATR  = atr14 / close
+refATR   = ta.sma(normATR, 200)
+volRatio = normATR / math.max(refATR, 1e-10)
+volMult  = math.max(1.0, math.min(1.5, volRatio))
+
+trend   = ta.sma(close, detrendLen)
+osc     = nz(close - trend)
+quad    = 0.0962 * osc + 0.5769 * nz(osc[2]) - 0.5769 * nz(osc[4]) - 0.0962 * nz(osc[6])
+envInst = math.sqrt(osc * osc + quad * quad)
+env     = ta.ema(envInst, envSmoothLen)
+envSlope     = env - nz(env[envSlopeLen], env)
+envSlopeMean = nz(ta.sma(envSlope, envBaseLen))
+envSlopeStd  = ta.stdev(envSlope, envBaseLen)
+envExpZ      = (envSlope - envSlopeMean) / math.max(nz(envSlopeStd), 1e-10)
+
+priceVel     = close - nz(close[priceVelLen], close)
+priceVelMean = nz(ta.sma(priceVel, envBaseLen))
+priceVelStd  = ta.stdev(priceVel, envBaseLen)
+priceVelZ    = (priceVel - priceVelMean) / math.max(nz(priceVelStd), 1e-10)
+
+expansionEdge = ta.crossover(envExpZ, expansionZ)
+ready         = bar_index > detrendLen + envBaseLen + 50
+
+goLong  = expansionEdge and priceVel > 0 and math.abs(priceVelZ) > minVelZ and regimeBull and not sideways
+goShort = expansionEdge and priceVel < 0 and math.abs(priceVelZ) > minVelZ and not sideways
+
+signalMult = math.max(1.0, math.min(3.0, math.abs(priceVelZ) / 1.0))
+
+var float streakMult = 1.0
+var float eqAtEntry  = na
+var float peakEquity = na
+var float prevPos    = 0.0
+
+if na(peakEquity)
+    peakEquity := strategy.equity
+if strategy.equity > peakEquity
+    peakEquity := strategy.equity
+ddFromPeak = (peakEquity - strategy.equity) / math.max(peakEquity, 1e-10) * 100
+if ddFromPeak > ddResetPct
+    streakMult := 1.0
+    peakEquity := strategy.equity
+
+curPos      = strategy.position_size
+posChanged  = curPos != prevPos
+justEntered = posChanged and prevPos == 0.0 and curPos != 0.0
+justExited  = posChanged and prevPos != 0.0 and curPos == 0.0
+
+if justEntered
+    eqAtEntry := strategy.equity
+
+if justExited
+    pnl = strategy.equity - nz(eqAtEntry, strategy.equity)
+    if pnl > 0
+        streakMult := math.min(amMultCap, streakMult * growthRate)
+    else
+        streakMult := math.max(1.0, streakMult * decayRate)
+
+prevPos := curPos
+
+effCash = baseCash * volMult * signalMult * streakMult
+effQty  = effCash / close
+
+if not regimeBull and strategy.position_size > 0
+    strategy.close("Long", comment="bear-exit")
+if sideways and strategy.position_size > 0
+    strategy.close("Long",  comment="sideways-exit")
+    strategy.close("Short", comment="sideways-exit")
+if goShort and strategy.position_size > 0
+    strategy.close("Long", comment="flip-short")
+if goLong and strategy.position_size < 0
+    strategy.close("Short", comment="flip-long")
+
+if goLong and ready
+    strategy.entry("Long", strategy.long, qty=effQty)
+if useShorts and goShort and ready
+    strategy.entry("Short", strategy.short, qty=effQty)
+
+strategy.exit("L-brk", from_entry="Long",
+     limit=strategy.position_avg_price * (1 + tpPct / 100),
+     stop =strategy.position_avg_price * (1 - slPct / 100))
+if useShorts
+    strategy.exit("S-brk", from_entry="Short",
+         limit=strategy.position_avg_price * (1 - tpPct / 100),
+         stop =strategy.position_avg_price * (1 + slPct / 100))
+
+plot(htfEMA200, "200d EMA", color=color.purple, linewidth=2)
+bgcolor(regimeBull ? color.new(color.green, 95) : color.new(color.red, 95))

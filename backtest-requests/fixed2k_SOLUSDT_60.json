@@ -1,0 +1,12 @@
+{
+  "id": "fixed2k_SOLUSDT_60",
+  "status": "pending",
+  "description": "Fixed $2k base SOLUSDT 1H, 2022-2026",
+  "pineFile": "strategy_v2_fixed2k.pine",
+  "symbol": "SOLUSDT",
+  "timeframe": "60",
+  "fromDate": "2022-01-01",
+  "toDate": "2026-05-13",
+  "initialCapital": 10000,
+  "createdAt": "2026-05-24T00:00:00Z"
+}

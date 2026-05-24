@@ -1,0 +1,12 @@
+{
+  "id": "fixed5k_ETHUSDT_60",
+  "status": "pending",
+  "description": "Fixed $5k base ETHUSDT 1H, 2022-2026",
+  "pineFile": "strategy_v2_fixed5k.pine",
+  "symbol": "ETHUSDT",
+  "timeframe": "60",
+  "fromDate": "2022-01-01",
+  "toDate": "2026-05-13",
+  "initialCapital": 10000,
+  "createdAt": "2026-05-24T00:00:00Z"
+}
