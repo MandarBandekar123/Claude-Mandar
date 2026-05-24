@@ -21,6 +21,8 @@ strategy("F40d C104 — PERSONAL", overlay=true,
      pyramiding=0,
      process_orders_on_close=true)
 
+INIT_CAP = 10000.0
+
 // === Sizing inputs ===
 baseRisk   = input.float(3.0, "Base Risk % of Equity", minval=0.5, maxval=10.0, step=0.5, group="Sizing",
      tooltip="Position value = equity × this %. Start at 3% (matches original $30k on $10k). Lower for smaller accounts.")
@@ -168,7 +170,7 @@ if barstate.islast
     hdr = color.new(color.blue, 50)
     table.cell(dash, 0, 0, "PERSONAL", text_color=color.white, bgcolor=hdr)
     table.cell(dash, 1, 0, str.tostring(baseRisk, "#.#") + "% base risk", text_color=color.white, bgcolor=hdr)
-    netpct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+    netpct = (strategy.equity - INIT_CAP) / INIT_CAP * 100
     table.cell(dash, 0, 1, "Net P&L",    text_color=color.gray, bgcolor=bg)
     table.cell(dash, 1, 1, str.tostring(netpct, "#.##") + "%", text_color=netpct >= 0 ? color.green : color.red, bgcolor=bg)
     table.cell(dash, 0, 2, "StreakMult", text_color=color.gray, bgcolor=bg)
