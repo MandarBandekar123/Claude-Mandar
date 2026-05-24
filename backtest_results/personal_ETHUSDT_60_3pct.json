@@ -10,11 +10,10 @@
     "toDate": "2026-05-13",
     "initialCapital": 10000,
     "createdAt": "2026-05-24T00:00:00Z",
-    "retriggeredAt": "2026-05-24T20:15:00Z",
-    "error": "quick_backtest: Error POSTing to endpoint (HTTP 400): Invalid message: {\"method\":\"tools/call\",\"params\":\"quick_backtest\",\"jsonrpc\":\"2.0\",\"id\":1}"
+    "retriggeredAt": "2026-05-24T20:45:00Z"
   },
   "result": {
-    "raw": "MCP error -32602: Input validation error: Invalid arguments for tool quick_backtest: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"pineSource\"\n    ],\n    \"message\": \"Required\"\n  }\n]"
+    "raw": "POST /backtests/adhoc → 400: {\"error\":\"backtest_failed\",\"message\":\"strategy.initial_capital is not a function\"}"
   },
-  "savedAt": "2026-05-24T19:08:15.815Z"
+  "savedAt": "2026-05-24T19:13:01.744Z"
 }
