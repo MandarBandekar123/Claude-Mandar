@@ -1,0 +1,182 @@
+// Strategy: F40d C104 — PERSONAL (equity-scaled dynamic sizing)
+// Same edge as v2 (ADX20, daily 200-EMA, envelope expansion, 5%TP/2%SL)
+// Difference from strategy_v2.pine: baseCash is % of equity, not hardcoded $30k
+// This makes it safe to run at any starting capital — $500, $1k, $5k, $10k+
+//
+// How sizing works:
+//   baseRisk % of equity = base position value
+//   × volMult  (0.5–1.5x, expands in low vol, contracts in high vol)
+//   × signalMult (1–3x, stronger velocity signal = bigger position)
+//   × streakMult (1–3x, anti-martingale: grows after wins, shrinks after losses)
+//   = effCash → effQty = effCash / price
+//
+// At baseRisk=3%, $1k account:  base=$30, max position=$135 (at all multipliers max)
+// At baseRisk=3%, $5k account:  base=$150, max position=$675
+// At baseRisk=3%, $10k account: base=$300, max position=$1,350
+//@version=5
+strategy("F40d C104 — PERSONAL", overlay=true,
+     initial_capital=10000,
+     commission_type=strategy.commission.percent, commission_value=0.04,
+     slippage=2,
+     pyramiding=0,
+     process_orders_on_close=true)
+
+// === Sizing inputs ===
+baseRisk   = input.float(3.0, "Base Risk % of Equity", minval=0.5, maxval=10.0, step=0.5, group="Sizing",
+     tooltip="Position value = equity × this %. Start at 3% (matches original $30k on $10k). Lower for smaller accounts.")
+amMultCap  = input.float(3.0, "Max Streak Multiplier", minval=1.0, maxval=5.0, step=0.5,  group="Sizing")
+growthRate = input.float(2.0, "Streak Growth Rate",    minval=1.1, maxval=2.5, step=0.1,  group="Sizing")
+decayRate  = input.float(0.9, "Streak Decay Rate",     minval=0.2, maxval=0.9, step=0.1,  group="Sizing")
+ddResetPct = input.float(5.0, "Streak Reset DD %",     minval=1.0, maxval=15.0, step=0.5, group="Sizing",
+     tooltip="Resets streakMult to 1.0 if equity drops this % from peak. Protects against compounding losses.")
+
+// === Strategy inputs ===
+adxThresh  = input.int(20,    "ADX Threshold",         minval=8,  maxval=35,  step=1,   group="Strategy")
+slPct      = input.float(2.0, "Stop Loss %",           minval=1.0, maxval=5.0, step=0.25, group="Strategy")
+tpPct      = input.float(5.0, "Take Profit %",         minval=3.0, maxval=12.0, step=0.5, group="Strategy")
+expansionZ = input.float(1.0, "Expansion Z-Threshold", minval=0.5, maxval=2.0, step=0.1,  group="Strategy")
+minVelZ    = input.float(0.5, "Min Velocity Z-Score",  minval=0.2, maxval=1.5, step=0.1,  group="Strategy")
+detrendLen = input.int(50,    "Detrend Length",        minval=30, maxval=70,  step=5,    group="Strategy")
+useShorts  = input.bool(true, "Enable Shorts",                                            group="Strategy")
+
+// === ADX ===
+adxLen          = 14
+tr              = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))
+upMove          = high - nz(high[1], high)
+downMove        = nz(low[1], low) - low
+plusDM          = upMove > downMove and upMove > 0 ? upMove : 0
+minusDM         = downMove > upMove and downMove > 0 ? downMove : 0
+smoothedTR      = ta.rma(tr, adxLen)
+smoothedPlusDM  = ta.rma(plusDM, adxLen)
+smoothedMinusDM = ta.rma(minusDM, adxLen)
+plusDI          = 100 * smoothedPlusDM  / (smoothedTR + 1e-10)
+minusDI         = 100 * smoothedMinusDM / (smoothedTR + 1e-10)
+dx              = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI + 1e-10)
+adx             = ta.rma(dx, adxLen)
+
+// === Regime — 4800-bar 1H EMA proxy (works on perps, no bar limit issues) ===
+htfEMA200  = ta.ema(close, 4800)
+regimeBull = close > htfEMA200
+sideways   = adx < adxThresh
+
+// === Envelope + velocity ===
+envBaseLen   = 150
+envSmoothLen = 10
+envSlopeLen  = 10
+priceVelLen  = 5
+trend   = ta.sma(close, detrendLen)
+osc     = nz(close - trend)
+quad    = 0.0962 * osc + 0.5769 * nz(osc[2]) - 0.5769 * nz(osc[4]) - 0.0962 * nz(osc[6])
+envInst = math.sqrt(osc * osc + quad * quad)
+env     = ta.ema(envInst, envSmoothLen)
+envSlope     = env - nz(env[envSlopeLen], env)
+envSlopeMean = nz(ta.sma(envSlope, envBaseLen))
+envSlopeStd  = ta.stdev(envSlope, envBaseLen)
+envExpZ      = (envSlope - envSlopeMean) / math.max(nz(envSlopeStd), 1e-10)
+priceVel     = close - nz(close[priceVelLen], close)
+priceVelMean = nz(ta.sma(priceVel, envBaseLen))
+priceVelStd  = ta.stdev(priceVel, envBaseLen)
+priceVelZ    = (priceVel - priceVelMean) / math.max(nz(priceVelStd), 1e-10)
+
+// === Signals ===
+expansionEdge = ta.crossover(envExpZ, expansionZ)
+ready         = bar_index > detrendLen + envBaseLen + 50
+
+goLong  = expansionEdge and priceVel > 0 and math.abs(priceVelZ) > minVelZ and regimeBull and not sideways
+goShort = expansionEdge and priceVel < 0 and math.abs(priceVelZ) > minVelZ and not sideways
+
+// === Dynamic sizing multipliers ===
+atr14    = ta.atr(14)
+normATR  = atr14 / close
+refATR   = ta.sma(normATR, 200)
+volRatio = normATR / math.max(refATR, 1e-10)
+volMult  = math.max(1.0, math.min(1.5, volRatio))
+
+signalMult = math.max(1.0, math.min(3.0, math.abs(priceVelZ) / 1.0))
+
+var float streakMult = 1.0
+var float eqAtEntry  = na
+var float peakEquity = na
+var float prevPos    = 0.0
+
+if na(peakEquity)
+    peakEquity := strategy.equity
+if strategy.equity > peakEquity
+    peakEquity := strategy.equity
+
+ddFromPeak = (peakEquity - strategy.equity) / math.max(peakEquity, 1e-10) * 100
+if ddFromPeak > ddResetPct
+    streakMult := 1.0
+    peakEquity := strategy.equity
+
+curPos      = strategy.position_size
+posChanged  = curPos != prevPos
+justEntered = posChanged and prevPos == 0.0 and curPos != 0.0
+justExited  = posChanged and prevPos != 0.0 and curPos == 0.0
+
+if justEntered
+    eqAtEntry := strategy.equity
+
+if justExited
+    pnl = strategy.equity - nz(eqAtEntry, strategy.equity)
+    if pnl > 0
+        streakMult := math.min(amMultCap, streakMult * growthRate)
+    else
+        streakMult := math.max(1.0, streakMult * decayRate)
+
+prevPos := curPos
+
+// === Position size — equity-scaled ===
+baseCash = strategy.equity * baseRisk / 100.0
+effCash  = baseCash * volMult * signalMult * streakMult
+effQty   = effCash / close
+
+// === Exits ===
+if not regimeBull and strategy.position_size > 0
+    strategy.close("Long", comment="bear-exit")
+if sideways and strategy.position_size > 0
+    strategy.close("Long",  comment="sideways-exit")
+    strategy.close("Short", comment="sideways-exit")
+if goShort and strategy.position_size > 0
+    strategy.close("Long", comment="flip-short")
+if goLong and strategy.position_size < 0
+    strategy.close("Short", comment="flip-long")
+
+// === Entries ===
+if goLong and ready
+    strategy.entry("Long", strategy.long, qty=effQty)
+if useShorts and goShort and ready
+    strategy.entry("Short", strategy.short, qty=effQty)
+
+// === Bracket exits ===
+strategy.exit("L-brk", from_entry="Long",
+     limit=strategy.position_avg_price * (1 + tpPct / 100),
+     stop =strategy.position_avg_price * (1 - slPct / 100))
+if useShorts
+    strategy.exit("S-brk", from_entry="Short",
+         limit=strategy.position_avg_price * (1 - tpPct / 100),
+         stop =strategy.position_avg_price * (1 + slPct / 100))
+
+// === Visuals ===
+plot(htfEMA200, "200d EMA", color=color.purple, linewidth=2)
+bgcolor(regimeBull ? color.new(color.green, 95) : color.new(color.red, 95))
+
+// === Dashboard ===
+var table dash = table.new(position.top_right, 2, 6, border_width=1, frame_color=color.gray, frame_width=1)
+if barstate.islast
+    bg  = color.new(color.black, 80)
+    hdr = color.new(color.blue, 50)
+    table.cell(dash, 0, 0, "PERSONAL", text_color=color.white, bgcolor=hdr)
+    table.cell(dash, 1, 0, str.tostring(baseRisk, "#.#") + "% base risk", text_color=color.white, bgcolor=hdr)
+    netpct = (strategy.equity - strategy.initial_capital) / strategy.initial_capital * 100
+    table.cell(dash, 0, 1, "Net P&L",    text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 1, str.tostring(netpct, "#.##") + "%", text_color=netpct >= 0 ? color.green : color.red, bgcolor=bg)
+    table.cell(dash, 0, 2, "StreakMult", text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 2, str.tostring(streakMult, "#.##") + "x", text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 3, "VolMult",   text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 3, str.tostring(volMult, "#.##") + "x", text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 4, "EffSize",   text_color=color.gray, bgcolor=bg)
+    curBaseCash = strategy.equity * baseRisk / 100.0
+    table.cell(dash, 1, 4, "$" + str.tostring(math.round(curBaseCash * volMult * signalMult * streakMult), "#"), text_color=color.white, bgcolor=bg)
+    table.cell(dash, 0, 5, "Trades",    text_color=color.gray, bgcolor=bg)
+    table.cell(dash, 1, 5, str.tostring(strategy.closedtrades), text_color=color.white, bgcolor=bg)
