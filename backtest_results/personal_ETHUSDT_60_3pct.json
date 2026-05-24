@@ -1,0 +1,20 @@
+{
+  "request": {
+    "id": "personal_ETHUSDT_60_3pct",
+    "status": "pending",
+    "description": "Personal strategy equity-scaled 3% base risk, ETHUSDT 1H, full history",
+    "pineFile": "strategy_v2_personal.pine",
+    "symbol": "ETHUSDT",
+    "timeframe": "60",
+    "fromDate": "2022-01-01",
+    "toDate": "2026-05-13",
+    "initialCapital": 10000,
+    "createdAt": "2026-05-24T00:00:00Z",
+    "retriggeredAt": "2026-05-24T20:15:00Z",
+    "error": "quick_backtest: Error POSTing to endpoint (HTTP 400): Invalid message: {\"method\":\"tools/call\",\"params\":\"quick_backtest\",\"jsonrpc\":\"2.0\",\"id\":1}"
+  },
+  "result": {
+    "raw": "MCP error -32602: Input validation error: Invalid arguments for tool quick_backtest: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"string\",\n    \"received\": \"undefined\",\n    \"path\": [\n      \"pineSource\"\n    ],\n    \"message\": \"Required\"\n  }\n]"
+  },
+  "savedAt": "2026-05-24T19:08:15.815Z"
+}
