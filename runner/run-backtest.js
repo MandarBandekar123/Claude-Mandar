@@ -36,6 +36,10 @@ try {
   process.exit(1);
 }
 
+// List available tools on first run
+const toolList = await client.listTools();
+console.log('  Available tools:', toolList.tools.map(t => t.name).join(', '));
+
 let raw;
 try {
   raw = await client.callTool({
