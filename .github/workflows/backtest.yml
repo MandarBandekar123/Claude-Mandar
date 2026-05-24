@@ -5,6 +5,9 @@ on:
     paths:
       - 'backtest-requests/**.json'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   backtest:
     runs-on: self-hosted
@@ -14,27 +17,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup environment
-        run: |
-          # Add homebrew to PATH for this and all subsequent steps
-          echo "/opt/homebrew/bin" >> $GITHUB_PATH
-          echo "/usr/local/bin"    >> $GITHUB_PATH
-          # Pass API key via env file
-          echo "TRADER_DEV_API_KEY=${{ secrets.TRADER_DEV_API_KEY }}" >> $GITHUB_ENV
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Diagnostics
         run: |
-          echo "Node: $(node --version 2>&1 || echo NOT FOUND)"
-          echo "curl: $(curl --version 2>&1 | head -1 || echo NOT FOUND)"
-          echo "API key set: $( [ -n "$TRADER_DEV_API_KEY" ] && echo YES || echo NO )"
+          echo "Node: $(node --version)"
+          echo "npm:  $(npm --version)"
+          echo "API key set: $( [ -n '${{ secrets.TRADER_DEV_API_KEY }}' ] && echo YES || echo NO )"
+          echo "Pending files:"
+          grep -rl '"status"' backtest-requests/ || echo "  none"
 
-      - name: Find and run pending requests
+      - name: Run pending backtests
+        env:
+          TRADER_DEV_API_KEY: ${{ secrets.TRADER_DEV_API_KEY }}
         run: |
           pending=$(grep -rl '"status"[[:space:]]*:[[:space:]]*"pending"' backtest-requests/ 2>/dev/null || true)
           echo "Pending: ${pending:-none}"
           for req in $pending; do
             echo "==> $req"
-            node runner/run-backtest.js "$req"
+            node runner/run-backtest.js "$req" || echo "FAILED: $req"
           done
 
       - name: Commit and push results
