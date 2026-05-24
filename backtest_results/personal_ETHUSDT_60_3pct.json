@@ -10,20 +10,20 @@
     "toDate": "2026-05-13",
     "initialCapital": 10000,
     "createdAt": "2026-05-24T00:00:00Z",
-    "retriggeredAt": "2026-05-24T20:50:00Z"
+    "retriggeredAt": "2026-05-24T21:00:00Z"
   },
   "result": {
-    "resultId": "01KSDPSJFPZ3HPA13KZDAKFV1P",
-    "durationMs": 1858,
+    "resultId": "01KSDQADQ6D34M1BAGZWRJGATE",
+    "durationMs": 1873,
     "result": {
-      "id": "01KSDPSJFPZ3HPA13KZDAKFV1P",
-      "jobId": "adhoc_01KSDPSJFP853RZ9Z06Q12544B",
+      "id": "01KSDQADQ6D34M1BAGZWRJGATE",
+      "jobId": "adhoc_01KSDQADQ6ZC1B6JZTM5ZMGX0N",
       "userId": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng",
-      "strategyId": "01KSDPSJHAAW9AD9R4VPQ1J08W",
+      "strategyId": "01KSDQADS1S94MWKCJCV3TQ5F2",
       "symbol": "ETHUSDT",
       "timeframe": "60",
-      "fromTs": 1771874314994,
-      "toTs": 1779650314994,
+      "fromTs": 1771874867161,
+      "toTs": 1779650867161,
       "barsEvaluated": 2016,
       "initialCapital": 10000,
       "finalEquity": 10025.90658768365,
@@ -60,15 +60,15 @@
       "longNetProfit": 0,
       "shortNetProfit": 8.739457967137,
       "commissionPaid": 5.948353086197,
-      "engineDurationMs": 164,
+      "engineDurationMs": 138,
       "notes": null,
-      "createdAt": 1779650316790,
+      "createdAt": 1779650868966,
       "visibility": "public",
       "parentResultId": null
     },
-    "strategyId": "01KSDPSJHAAW9AD9R4VPQ1J08W",
+    "strategyId": "01KSDQADS1S94MWKCJCV3TQ5F2",
     "version": 1,
-    "strategyViewUrl": "https://mcp-api.trader.dev/backtest/01KSDPSJFPZ3HPA13KZDAKFV1P",
+    "strategyViewUrl": "https://mcp-api.trader.dev/backtest/01KSDQADQ6D34M1BAGZWRJGATE",
     "warning": "No name supplied — auto-saved as \"F40d C104 — PERSONAL\" (extracted from the Pine source's strategy() title). Rename via update_strategy if you'd like.",
     "cascade": {
       "totalRows": 5,
@@ -79,15 +79,15 @@
         "1": 5
       }
     },
-    "viewUrl": "https://mcp-api.trader.dev/backtest/01KSDPSJFPZ3HPA13KZDAKFV1P",
+    "viewUrl": "https://mcp-api.trader.dev/backtest/01KSDQADQ6D34M1BAGZWRJGATE",
     "browseUrl": "https://mcp-api.trader.dev/browse",
     "coverage": {
       "requestedBars": 2160,
       "evaluatedBars": 2016,
       "coveragePct": 93.33,
-      "estimatedEffectiveFromTs": 1772392714994,
+      "estimatedEffectiveFromTs": 1772393267161,
       "warnings": []
     }
   },
-  "savedAt": "2026-05-24T19:18:37.016Z"
+  "savedAt": "2026-05-24T19:27:49.189Z"
 }
