@@ -1,6 +1,6 @@
 {
   "id": "personal_ETHUSDT_60_3pct",
-  "status": "error",
+  "status": "pending",
   "description": "Personal strategy equity-scaled 3% base risk, ETHUSDT 1H, full history",
   "pineFile": "strategy_v2_personal.pine",
   "symbol": "ETHUSDT",
@@ -9,6 +9,6 @@
   "toDate": "2026-05-13",
   "initialCapital": 10000,
   "createdAt": "2026-05-24T00:00:00Z",
-  "retriggeredAt": "2026-05-24T20:10:00Z",
+  "retriggeredAt": "2026-05-24T20:15:00Z",
   "error": "quick_backtest: Error POSTing to endpoint (HTTP 400): Invalid message: {\"method\":\"tools/call\",\"params\":\"quick_backtest\",\"jsonrpc\":\"2.0\",\"id\":1}"
 }

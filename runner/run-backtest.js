@@ -38,13 +38,16 @@ try {
 
 let raw;
 try {
-  raw = await client.callTool('quick_backtest', {
-    symbol:          req.symbol,
-    timeframe:       String(req.timeframe),
-    from_date:       req.fromDate,
-    to_date:         req.toDate,
-    initial_capital: req.initialCapital,
-    pine_script:     pineScript,
+  raw = await client.callTool({
+    name: 'quick_backtest',
+    arguments: {
+      symbol:          req.symbol,
+      timeframe:       String(req.timeframe),
+      from_date:       req.fromDate,
+      to_date:         req.toDate,
+      initial_capital: req.initialCapital,
+      pine_script:     pineScript,
+    },
   });
 } catch (err) {
   console.error('  quick_backtest failed:', err.message);
