@@ -1,6 +1,6 @@
 {
   "id": "personal_ETHUSDT_60_3pct",
-  "status": "pending",
+  "status": "error",
   "description": "Personal strategy equity-scaled 3% base risk, ETHUSDT 1H, full history",
   "pineFile": "strategy_v2_personal.pine",
   "symbol": "ETHUSDT",
@@ -9,5 +9,11 @@
   "toDate": "2026-05-13",
   "initialCapital": 10000,
   "createdAt": "2026-05-24T00:00:00Z",
-  "retriggeredAt": "2026-05-24T20:00:00Z"
+  "retriggeredAt": "2026-05-24T20:00:00Z",
+  "error": "All endpoints failed. Last status: 404",
+  "debugRes": {
+    "message": "Route POST:/backtest not found",
+    "error": "Not Found",
+    "statusCode": 404
+  }
 }
