@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'backtest-requests/**.json'
+      - 'deploy-requests/**.json'
 
 permissions:
   contents: write
@@ -30,17 +31,29 @@ jobs:
           TRADER_DEV_API_KEY: ${{ secrets.TRADER_DEV_API_KEY }}
         run: |
           pending=$(grep -rEl '"status"\s*:\s*"pending"' backtest-requests/ 2>/dev/null || true)
-          echo "Pending: ${pending:-none}"
+          echo "Pending backtests: ${pending:-none}"
           for req in $pending; do
             echo "==> $req"
             node runner/run-backtest.js "$req" || echo "FAILED: $req"
+          done
+
+      - name: Run pending deploys
+        env:
+          TRADER_DEV_API_KEY: ${{ secrets.TRADER_DEV_API_KEY }}
+        run: |
+          mkdir -p deploy-requests deploy-results
+          pending=$(grep -rEl '"status"\s*:\s*"pending"' deploy-requests/ 2>/dev/null || true)
+          echo "Pending deploys: ${pending:-none}"
+          for req in $pending; do
+            echo "==> $req"
+            node runner/deploy-live.js "$req" || echo "FAILED: $req"
           done
 
       - name: Commit and push results
         run: |
           git config user.email "runner@claude-mandar"
           git config user.name "Backtest Runner"
-          git add backtest-requests/ backtest_results/
+          git add backtest-requests/ backtest_results/ deploy-requests/ deploy-results/
           git diff --staged --quiet && echo "Nothing to commit." || \
-            (git commit -m "Backtest results: $(date '+%Y-%m-%d %H:%M')" && \
+            (git commit -m "Runner results: $(date '+%Y-%m-%d %H:%M')" && \
              git push origin HEAD:claude/add-trader-dev-mcp-dJbZq)
