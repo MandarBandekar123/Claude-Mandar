@@ -1,0 +1,73 @@
+import { Bybit }    from './bybit.js';
+import { Tracker }  from './tracker.js';
+import { Telegram } from './telegram.js';
+import { config }   from './config.js';
+
+// Poll every 60s for position closes (TP/SL hit or flip signal)
+export async function startMonitor() {
+  console.log('Position monitor started (60s interval)');
+  setInterval(checkPositions, 60_000);
+}
+
+async function checkPositions() {
+  const open = Tracker.getOpen();
+  if (!open.length) return;
+
+  for (const trade of open) {
+    try {
+      const pos = await Bybit.getPosition(trade.symbol);
+
+      // Position closed on Bybit (TP/SL hit)
+      if (!pos) {
+        await handleClose(trade);
+      }
+    } catch (e) {
+      console.error(`Monitor error for trade ${trade.id}:`, e.message);
+    }
+  }
+}
+
+async function handleClose(trade) {
+  // Get actual exit from Bybit closed P&L
+  const fill = await Bybit.getLastFill(trade.symbol);
+  const exitPrice  = fill ? parseFloat(fill.avgExitPrice) : 0;
+  const closedPnl  = fill ? parseFloat(fill.closedPnl)    : 0;
+
+  const side       = trade.side;
+  const notional   = trade.notional;
+  const exitFee    = notional * config.takerFee;           // conservative: assume market exit
+  const grossPnl   = side === 'Buy'
+    ? (exitPrice - trade.entryPrice) * trade.qty
+    : (trade.entryPrice - exitPrice) * trade.qty;
+  const netPnl     = grossPnl - trade.entryFee - exitFee;
+
+  const closeReason = exitPrice >= trade.tpPrice - 0.5 ? 'TP ✅'
+                    : exitPrice <= trade.slPrice + 0.5 ? 'SL 🛑'
+                    : 'Signal flip 🔄';
+
+  const closedAt = new Date().toISOString();
+  Tracker.close({
+    id: trade.id,
+    exitPrice, exitFee,
+    grossPnl, netPnl,
+    closeReason, closedAt,
+  });
+
+  // Running totals
+  const allStats = Tracker.stats();
+  const totalNetPnl = parseFloat(allStats?.netPnl ?? 0);
+  const totalTrades = allStats?.total ?? 1;
+  const totalWins   = allStats?.wins  ?? 0;
+
+  const msg = Telegram.tradeClosed({
+    side, symbol: trade.symbol,
+    entryPrice: trade.entryPrice, exitPrice,
+    qty: trade.qty, notional,
+    grossPnl, entryFee: trade.entryFee, exitFee, netPnl,
+    closeReason,
+    openedAt: trade.openedAt, closedAt,
+    totalNetPnl, totalTrades, totalWins,
+  });
+  await Telegram.send(msg);
+  console.log(`Trade ${trade.id} closed: ${closeReason} | Net P&L: $${netPnl.toFixed(2)}`);
+}

@@ -1,0 +1,17 @@
+{
+  "name": "f40d-trading-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "pm2": "pm2 start server.js --name f40d-bot --watch false"
+  },
+  "dependencies": {
+    "bybit-api": "^3.10.0",
+    "express": "^4.18.2",
+    "node-telegram-bot-api": "^0.65.1",
+    "better-sqlite3": "^9.4.3",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
+  }
+}
