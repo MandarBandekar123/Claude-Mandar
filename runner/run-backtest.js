@@ -41,12 +41,12 @@ try {
   raw = await client.callTool({
     name: 'quick_backtest',
     arguments: {
-      symbol:          req.symbol,
-      timeframe:       String(req.timeframe),
-      from_date:       req.fromDate,
-      to_date:         req.toDate,
-      initial_capital: req.initialCapital,
-      pine_script:     pineScript,
+      symbol:         req.symbol,
+      timeframe:      String(req.timeframe),
+      from_date:      req.fromDate,
+      to_date:        req.toDate,
+      initialCapital: req.initialCapital,
+      pineSource:     pineScript,
     },
   });
 } catch (err) {
