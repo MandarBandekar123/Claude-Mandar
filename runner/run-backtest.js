@@ -49,8 +49,8 @@ try {
     arguments: {
       symbol:         req.symbol,
       timeframe:      String(req.timeframe),
-      fromDate:       req.fromDate,
-      toDate:         req.toDate,
+      from:           req.fromDate,
+      to:             req.toDate,
       initialCapital: req.initialCapital,
       pineSource:     pineScript,
     },
