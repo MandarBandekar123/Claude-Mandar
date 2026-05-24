@@ -20,14 +20,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      - name: Diagnostics
-        run: |
-          echo "Node: $(node --version)"
-          echo "API key set: $( [ -n '${{ secrets.TRADER_DEV_API_KEY }}' ] && echo YES || echo NO )"
-          echo "Pending requests:"
-          grep -rEl '"status"\s*:\s*"pending"' backtest-requests/ || echo "  none"
+      - name: Install runner deps
+        run: npm install --prefix runner
 
       - name: Run pending backtests
         env:
