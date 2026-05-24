@@ -36,9 +36,11 @@ try {
   process.exit(1);
 }
 
-// List available tools on first run
+// Discover and save available tools
 const toolList = await client.listTools();
 console.log('  Available tools:', toolList.tools.map(t => t.name).join(', '));
+const toolsFile = path.join(repoRoot, 'backtest_results', '_trader_dev_tools.json');
+fs.writeFileSync(toolsFile, JSON.stringify(toolList.tools.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })), null, 2));
 
 let raw;
 try {
