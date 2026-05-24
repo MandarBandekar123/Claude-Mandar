@@ -1,0 +1,36 @@
+name: Run Backtest
+
+on:
+  push:
+    paths:
+      - 'backtest-requests/**.json'
+
+jobs:
+  backtest:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find pending requests
+        id: find
+        run: |
+          pending=$(find backtest-requests -name "*.json" | xargs grep -l '"status":"pending"' 2>/dev/null || true)
+          echo "files=$pending" >> $GITHUB_OUTPUT
+
+      - name: Run backtests
+        if: steps.find.outputs.files != ''
+        run: |
+          for req in ${{ steps.find.outputs.files }}; do
+            echo "Processing $req"
+            node runner/run-backtest.js "$req"
+          done
+
+      - name: Commit results
+        run: |
+          git config user.email "runner@claude-mandar"
+          git config user.name "Backtest Runner"
+          git add backtest-requests/ backtest_results/
+          git diff --staged --quiet || git commit -m "Backtest results: $(date '+%Y-%m-%d %H:%M')"
+          git push
