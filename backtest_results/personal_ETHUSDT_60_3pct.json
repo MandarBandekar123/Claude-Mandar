@@ -10,10 +10,84 @@
     "toDate": "2026-05-13",
     "initialCapital": 10000,
     "createdAt": "2026-05-24T00:00:00Z",
-    "retriggeredAt": "2026-05-24T20:45:00Z"
+    "retriggeredAt": "2026-05-24T20:50:00Z"
   },
   "result": {
-    "raw": "POST /backtests/adhoc → 400: {\"error\":\"backtest_failed\",\"message\":\"strategy.initial_capital is not a function\"}"
+    "resultId": "01KSDPSJFPZ3HPA13KZDAKFV1P",
+    "durationMs": 1858,
+    "result": {
+      "id": "01KSDPSJFPZ3HPA13KZDAKFV1P",
+      "jobId": "adhoc_01KSDPSJFP853RZ9Z06Q12544B",
+      "userId": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng",
+      "strategyId": "01KSDPSJHAAW9AD9R4VPQ1J08W",
+      "symbol": "ETHUSDT",
+      "timeframe": "60",
+      "fromTs": 1771874314994,
+      "toTs": 1779650314994,
+      "barsEvaluated": 2016,
+      "initialCapital": 10000,
+      "finalEquity": 10025.90658768365,
+      "netProfit": 7.345131953344,
+      "netProfitPct": 0.07345132,
+      "grossProfit": 90.912211928587,
+      "grossLoss": 77.618726889047,
+      "profitFactor": 1.17126647,
+      "maxDrawdown": 87.226368933489,
+      "maxDrawdownPct": 0.86588056,
+      "maxRunup": 133.948819391813,
+      "maxRunupPct": 1.33948819,
+      "totalTrades": 5,
+      "winningTrades": 2,
+      "losingTrades": 3,
+      "evenTrades": 0,
+      "winRatePct": 40,
+      "avgTrade": 1.469026390669,
+      "avgTradePct": 0.01469026,
+      "avgWinningTrade": 45.456105964294,
+      "avgLosingTrade": -25.872908963016,
+      "ratioAvgWinLoss": 1.7568997,
+      "largestWin": 57.01406759541,
+      "largestLoss": -37.805372369242,
+      "avgBarsInTrade": 38,
+      "avgBarsWinning": 42.5,
+      "avgBarsLosing": 35,
+      "sharpeRatio": 0.46804304,
+      "sortinoRatio": 0.16059992,
+      "longTrades": 0,
+      "shortTrades": 5,
+      "longWinning": 0,
+      "shortWinning": 2,
+      "longNetProfit": 0,
+      "shortNetProfit": 8.739457967137,
+      "commissionPaid": 5.948353086197,
+      "engineDurationMs": 164,
+      "notes": null,
+      "createdAt": 1779650316790,
+      "visibility": "public",
+      "parentResultId": null
+    },
+    "strategyId": "01KSDPSJHAAW9AD9R4VPQ1J08W",
+    "version": 1,
+    "strategyViewUrl": "https://mcp-api.trader.dev/backtest/01KSDPSJFPZ3HPA13KZDAKFV1P",
+    "warning": "No name supplied — auto-saved as \"F40d C104 — PERSONAL\" (extracted from the Pine source's strategy() title). Rename via update_strategy if you'd like.",
+    "cascade": {
+      "totalRows": 5,
+      "uniqueEntries": 5,
+      "cascadeRatio": 1,
+      "maxCascadeDepth": 1,
+      "cascadeHistogram": {
+        "1": 5
+      }
+    },
+    "viewUrl": "https://mcp-api.trader.dev/backtest/01KSDPSJFPZ3HPA13KZDAKFV1P",
+    "browseUrl": "https://mcp-api.trader.dev/browse",
+    "coverage": {
+      "requestedBars": 2160,
+      "evaluatedBars": 2016,
+      "coveragePct": 93.33,
+      "estimatedEffectiveFromTs": 1772392714994,
+      "warnings": []
+    }
   },
-  "savedAt": "2026-05-24T19:13:01.744Z"
+  "savedAt": "2026-05-24T19:18:37.016Z"
 }
