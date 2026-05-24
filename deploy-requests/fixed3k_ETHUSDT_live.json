@@ -1,6 +1,6 @@
 {
   "id": "fixed3k_ETHUSDT_live",
-  "status": "pending",
+  "status": "deployed",
   "name": "F40d C104 — Fixed $3k Base",
   "pineFile": "strategy_v2_fixed3k.pine",
   "symbol": "ETHUSDT",
@@ -12,5 +12,8 @@
   "requirePF": 1.2,
   "requireMaxDD": 20,
   "createdAt": "2026-05-24T00:00:00Z",
-  "notes": "Fixed $3k base. Anti-martingale: doubles after wins, resets on 5% DD. ETH-only edge."
+  "notes": "Fixed $3k base. Anti-martingale: doubles after wins, resets on 5% DD. ETH-only edge.",
+  "strategyId": "01KSDS5BCKYSXRET62Z32X17TN",
+  "deployedAt": "2026-05-24T20:00:06.012Z",
+  "resultFile": "deploy-results/fixed3k_ETHUSDT_live.json"
 }

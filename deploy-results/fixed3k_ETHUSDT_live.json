@@ -1,0 +1,60 @@
+{
+  "request": {
+    "id": "fixed3k_ETHUSDT_live",
+    "status": "pending",
+    "name": "F40d C104 — Fixed $3k Base",
+    "pineFile": "strategy_v2_fixed3k.pine",
+    "symbol": "ETHUSDT",
+    "timeframe": "1h",
+    "initialCapital": 10000,
+    "warmupBars": 300,
+    "validateFrom": "2025-01-01",
+    "validateTo": "2026-05-13",
+    "requirePF": 1.2,
+    "requireMaxDD": 20,
+    "createdAt": "2026-05-24T00:00:00Z",
+    "notes": "Fixed $3k base. Anti-martingale: doubles after wins, resets on 5% DD. ETH-only edge."
+  },
+  "strategyId": "01KSDS5BCKYSXRET62Z32X17TN",
+  "whoami": {
+    "id": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng",
+    "email": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng@recovered.local",
+    "displayName": null,
+    "username": null,
+    "avatarUrl": null,
+    "authProvider": "clerk",
+    "createdAt": "1778700211338",
+    "isAdmin": false,
+    "tier": "pro",
+    "isPaid": true,
+    "unlimited": false
+  },
+  "validationBacktest": {
+    "profitFactor": 2.05792126,
+    "maxDrawdownPct": 13.02988934,
+    "totalTrades": 88
+  },
+  "deployedAt": "2026-05-24T20:00:06.003Z",
+  "deployed": {
+    "id": "01KSDS5BCKYSXRET62Z32X17TN",
+    "userId": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng",
+    "name": "F40d C104 — Fixed $3k Base",
+    "symbol": "ETHUSDT",
+    "timeframe": "1h",
+    "pineSource": "// Strategy: F40d C104 — FIXED $2k BASE\n// Identical to strategy_v2.pine (original) with two changes:\n//   1. baseCash = 2000.0 (was 30000.0)\n//   2. Compilation fixes for trader-dev: commission constant + EMA proxy\n//@version=5\nstrategy(\"F40d C104 — Fixed $3000 Base\", overlay=true,\n     initial_capital=10000,\n     commission_type=strategy.commission.percent, commission_value=0.04,\n     slippage=2, pyramiding=0, process_orders_on_close=true)\n\nadxThresh  = input.int(20,    \"ADX Threshold\",         minval=8,  maxval=35,  step=1)\nslPct      = input.float(2.0, \"Stop Loss %\",           minval=1.0, maxval=5.0, step=0.25)\ntpPct      = input.float(5.0, \"Take Profit %\",         minval=3.0, maxval=12.0, step=0.5)\ngrowthRate = input.float(2.0, \"Streak Growth Rate\",    minval=1.1, maxval=2.5, step=0.1)\ndecayRate  = input.float(0.9, \"Streak Decay Rate\",     minval=0.2, maxval=0.9, step=0.1)\nexpansionZ = input.float(1.0, \"Expansion Z-Threshold\", minval=0.5, maxval=2.0, step=0.1)\nminVelZ    = input.float(0.5, \"Min Velocity Z-Score\",  minval=0.2, maxval=1.5, step=0.1)\ndetrendLen = input.int(50,    \"Detrend Length\",        minval=30,  maxval=70,  step=5)\nddResetPct = input.float(5.0, \"Streak Reset DD %\",     minval=1.0, maxval=15.0, step=0.5)\n\nadxLen          = 14\ntr              = math.max(high - low, math.abs(high - nz(close[1], close)), math.abs(low - nz(close[1], close)))\nup              = high - nz(high[1], high)\ndown            = nz(low[1], low) - low\nplusDM          = up > down and up > 0 ? up : 0\nminusDM         = down > up and down > 0 ? down : 0\nsmoothedTR      = ta.rma(tr, adxLen)\nsmoothedPlusDM  = ta.rma(plusDM, adxLen)\nsmoothedMinusDM = ta.rma(minusDM, adxLen)\nplusDI          = 100 * smoothedPlusDM  / (smoothedTR + 1e-10)\nminusDI         = 100 * smoothedMinusDM / (smoothedTR + 1e-10)\ndx              = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI + 1e-10)\nadx             = ta.rma(dx, adxLen)\n\n// 200-day EMA proxy via 4800-bar 1H EMA — avoids request.security bar limit on perps\nhtfEMA200  = ta.ema(close, 4800)\nregimeBull = close > htfEMA200\nsideways   = adx < adxThresh\n\nenvSmoothLen = 10\nenvSlopeLen  = 10\nenvBaseLen   = 150\npriceVelLen  = 5\nuseShorts    = true\nbaseCash     = 3000.0\namMultCap    = 3.0\n\natr14    = ta.atr(14)\nnormATR  = atr14 / close\nrefATR   = ta.sma(normATR, 200)\nvolRatio = normATR / math.max(refATR, 1e-10)\nvolMult  = math.max(1.0, math.min(1.5, volRatio))\n\ntrend   = ta.sma(close, detrendLen)\nosc     = nz(close - trend)\nquad    = 0.0962 * osc + 0.5769 * nz(osc[2]) - 0.5769 * nz(osc[4]) - 0.0962 * nz(osc[6])\nenvInst = math.sqrt(osc * osc + quad * quad)\nenv     = ta.ema(envInst, envSmoothLen)\nenvSlope     = env - nz(env[envSlopeLen], env)\nenvSlopeMean = nz(ta.sma(envSlope, envBaseLen))\nenvSlopeStd  = ta.stdev(envSlope, envBaseLen)\nenvExpZ      = (envSlope - envSlopeMean) / math.max(nz(envSlopeStd), 1e-10)\n\npriceVel     = close - nz(close[priceVelLen], close)\npriceVelMean = nz(ta.sma(priceVel, envBaseLen))\npriceVelStd  = ta.stdev(priceVel, envBaseLen)\npriceVelZ    = (priceVel - priceVelMean) / math.max(nz(priceVelStd), 1e-10)\n\nexpansionEdge = ta.crossover(envExpZ, expansionZ)\nready         = bar_index > detrendLen + envBaseLen + 50\n\ngoLong  = expansionEdge and priceVel > 0 and math.abs(priceVelZ) > minVelZ and regimeBull and not sideways\ngoShort = expansionEdge and priceVel < 0 and math.abs(priceVelZ) > minVelZ and not sideways\n\nsignalMult = math.max(1.0, math.min(3.0, math.abs(priceVelZ) / 1.0))\n\nvar float streakMult = 1.0\nvar float eqAtEntry  = na\nvar float peakEquity = na\nvar float prevPos    = 0.0\n\nif na(peakEquity)\n    peakEquity := strategy.equity\nif strategy.equity > peakEquity\n    peakEquity := strategy.equity\nddFromPeak = (peakEquity - strategy.equity) / math.max(peakEquity, 1e-10) * 100\nif ddFromPeak > ddResetPct\n    streakMult := 1.0\n    peakEquity := strategy.equity\n\ncurPos      = strategy.position_size\nposChanged  = curPos != prevPos\njustEntered = posChanged and prevPos == 0.0 and curPos != 0.0\njustExited  = posChanged and prevPos != 0.0 and curPos == 0.0\n\nif justEntered\n    eqAtEntry := strategy.equity\n\nif justExited\n    pnl = strategy.equity - nz(eqAtEntry, strategy.equity)\n    if pnl > 0\n        streakMult := math.min(amMultCap, streakMult * growthRate)\n    else\n        streakMult := math.max(1.0, streakMult * decayRate)\n\nprevPos := curPos\n\neffCash = baseCash * volMult * signalMult * streakMult\neffQty  = effCash / close\n\nif not regimeBull and strategy.position_size > 0\n    strategy.close(\"Long\", comment=\"bear-exit\")\nif sideways and strategy.position_size > 0\n    strategy.close(\"Long\",  comment=\"sideways-exit\")\n    strategy.close(\"Short\", comment=\"sideways-exit\")\nif goShort and strategy.position_size > 0\n    strategy.close(\"Long\", comment=\"flip-short\")\nif goLong and strategy.position_size < 0\n    strategy.close(\"Short\", comment=\"flip-long\")\n\nif goLong and ready\n    strategy.entry(\"Long\", strategy.long, qty=effQty)\nif useShorts and goShort and ready\n    strategy.entry(\"Short\", strategy.short, qty=effQty)\n\nstrategy.exit(\"L-brk\", from_entry=\"Long\",\n     limit=strategy.position_avg_price * (1 + tpPct / 100),\n     stop =strategy.position_avg_price * (1 - slPct / 100))\nif useShorts\n    strategy.exit(\"S-brk\", from_entry=\"Short\",\n         limit=strategy.position_avg_price * (1 - tpPct / 100),\n         stop =strategy.position_avg_price * (1 + slPct / 100))\n\nplot(htfEMA200, \"200d EMA\", color=color.purple, linewidth=2)\nbgcolor(regimeBull ? color.new(color.green, 95) : color.new(color.red, 95))\n",
+    "messageTemplate": "",
+    "sinks": [],
+    "warmupBars": 300,
+    "initialCapital": 10000,
+    "strategyType": "alert",
+    "mode": "deployed",
+    "status": "active",
+    "createdAt": "1779652799891",
+    "updatedAt": "1779652805858",
+    "lastEvaluatedAt": null,
+    "visibility": "public",
+    "forkedFromStrategyId": null,
+    "parentVersionId": null,
+    "version": 1
+  }
+}
