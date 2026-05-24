@@ -1,6 +1,6 @@
 {
   "id": "fixed3k_ETHUSDT_live",
-  "status": "deployed",
+  "status": "pending",
   "name": "F40d C104 — Fixed $3k Base",
   "pineFile": "strategy_v2_fixed3k.pine",
   "symbol": "ETHUSDT",

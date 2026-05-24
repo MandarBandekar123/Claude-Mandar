@@ -1,6 +1,6 @@
-// Strategy: F40d C104 — FIXED $2k BASE
+// Strategy: F40d C104 — FIXED $3k BASE
 // Identical to strategy_v2.pine (original) with two changes:
-//   1. baseCash = 2000.0 (was 30000.0)
+//   1. baseCash = 3000.0 (was 30000.0)
 //   2. Compilation fixes for trader-dev: commission constant + EMA proxy
 //@version=5
 strategy("F40d C104 — Fixed $3000 Base", overlay=true,

@@ -51,26 +51,37 @@ try {
   console.log(`  Authenticated as: ${whoami.email ?? whoami.userId ?? JSON.stringify(whoami)}`);
 } catch (err) { fail('whoami: ' + err.message); }
 
-// ── Step 2: create strategy in dev mode ─────────────────────────────────────
+// ── Step 2: create or update strategy ───────────────────────────────────────
 let strategy;
+const existingId = req.strategyId;
 try {
-  const raw = await client.callTool({
-    name: 'create_strategy',
-    arguments: {
-      name:           req.name,
-      symbol:         req.symbol,
-      timeframe:      req.timeframe,
-      pineSource:     pineScript,
-      initialCapital: req.initialCapital,
-      warmupBars:     req.warmupBars ?? 300,
-    },
-  });
-  strategy = parse(raw);
-  console.log(`  Strategy created: ${strategy.id ?? strategy.strategyId}`);
-} catch (err) { fail('create_strategy: ' + err.message); }
+  if (existingId) {
+    console.log(`  Updating existing strategy: ${existingId}`);
+    const raw = await client.callTool({
+      name: 'update_strategy',
+      arguments: { id: existingId, pineSource: pineScript, name: req.name },
+    });
+    strategy = parse(raw);
+    console.log(`  Strategy updated: ${existingId}`);
+  } else {
+    const raw = await client.callTool({
+      name: 'create_strategy',
+      arguments: {
+        name:           req.name,
+        symbol:         req.symbol,
+        timeframe:      req.timeframe,
+        pineSource:     pineScript,
+        initialCapital: req.initialCapital,
+        warmupBars:     req.warmupBars ?? 300,
+      },
+    });
+    strategy = parse(raw);
+    console.log(`  Strategy created: ${strategy.id ?? strategy.strategyId}`);
+  }
+} catch (err) { fail((existingId ? 'update_strategy' : 'create_strategy') + ': ' + err.message); }
 
-const strategyId = strategy.id ?? strategy.strategyId;
-if (!strategyId) fail('No strategyId returned from create_strategy', { raw: strategy });
+const strategyId = existingId ?? strategy.id ?? strategy.strategyId;
+if (!strategyId) fail('No strategyId returned', { raw: strategy });
 
 // ── Step 3: run validation backtest (last 90 days — quick sanity check) ──────
 let btResult;
