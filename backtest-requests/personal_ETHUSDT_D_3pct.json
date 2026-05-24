@@ -1,0 +1,12 @@
+{
+  "id": "personal_ETHUSDT_D_3pct",
+  "status": "pending",
+  "description": "Personal strategy 3% base risk, ETHUSDT Daily — full 4yr history",
+  "pineFile": "strategy_v2_personal.pine",
+  "symbol": "ETHUSDT",
+  "timeframe": "D",
+  "fromDate": "2022-01-01",
+  "toDate": "2026-05-13",
+  "initialCapital": 10000,
+  "createdAt": "2026-05-24T00:00:00Z"
+}
