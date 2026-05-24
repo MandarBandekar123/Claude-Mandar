@@ -13,7 +13,10 @@
     "requirePF": 1.2,
     "requireMaxDD": 20,
     "createdAt": "2026-05-24T00:00:00Z",
-    "notes": "Fixed $3k base. Anti-martingale: doubles after wins, resets on 5% DD. ETH-only edge."
+    "notes": "Fixed $3k base. Anti-martingale: doubles after wins, resets on 5% DD. ETH-only edge.",
+    "strategyId": "01KSDS5BCKYSXRET62Z32X17TN",
+    "deployedAt": "2026-05-24T20:00:06.012Z",
+    "resultFile": "deploy-results/fixed3k_ETHUSDT_live.json"
   },
   "strategyId": "01KSDS5BCKYSXRET62Z32X17TN",
   "whoami": {
@@ -34,7 +37,7 @@
     "maxDrawdownPct": 13.02988934,
     "totalTrades": 88
   },
-  "deployedAt": "2026-05-24T20:00:06.003Z",
+  "deployedAt": "2026-05-24T20:02:42.497Z",
   "deployed": {
     "id": "01KSDS5BCKYSXRET62Z32X17TN",
     "userId": "user_3DgOKgVEvh8XUZWtx8GAEvwjDng",
@@ -50,7 +53,7 @@
     "mode": "deployed",
     "status": "active",
     "createdAt": "1779652799891",
-    "updatedAt": "1779652805858",
+    "updatedAt": "1779652962367",
     "lastEvaluatedAt": null,
     "visibility": "public",
     "forkedFromStrategyId": null,
