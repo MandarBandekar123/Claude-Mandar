@@ -1,6 +1,6 @@
 {
   "id": "fixed3k_ETHUSDT_60",
-  "status": "pending",
+  "status": "done",
   "description": "Fixed $3k base ETHUSDT 1H, 2022-2026",
   "pineFile": "strategy_v2_fixed3k.pine",
   "symbol": "ETHUSDT",
@@ -8,5 +8,8 @@
   "fromDate": "2022-01-01",
   "toDate": "2026-05-13",
   "initialCapital": 10000,
-  "createdAt": "2026-05-24T00:00:00Z"
+  "createdAt": "2026-05-24T00:00:00Z",
+  "resultFile": "backtest_results/fixed3k_ETHUSDT_60.json",
+  "resultId": "01KSDRRK659R3JFY2TDQQNK5ZC",
+  "completedAt": "2026-05-24T19:53:02.954Z"
 }
