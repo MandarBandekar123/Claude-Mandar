@@ -1,0 +1,1011 @@
+[
+  {
+    "name": "login",
+    "description": "Check authentication status. If already authenticated, returns your user info. If not authenticated, provides a browser login URL. The user opens the URL, signs in with Google via Clerk, and the page displays a pk_… API key. They paste the key back here and you call authenticate({ key }) to store it for this session.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "authenticate",
+    "description": "Store an API key for this session. Validates the key against the API and logs you in. The key is held in memory for this session only — never written to disk.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Your API key. Starts with pk_."
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_api_key",
+    "description": "Create an API key for a TraderDev account in one step. Provide your email and password. If no account exists for that email, one is registered automatically. The generated pk_… key is stored for this session automatically — no need to call authenticate() afterwards. Save the key somewhere safe — it is shown only once.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Your account email address."
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "description": "Your account password (8+ characters)."
+        }
+      },
+      "required": [
+        "email",
+        "password"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "whoami",
+    "description": "Verify auth and return the current user's basic info. Recommended as the first call in every conversation to confirm the API key is valid and give Claude context about who it's acting on behalf of.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "list_strategies",
+    "description": "List the user's saved strategies. Filter by mode: 'dev' = drafts under development, 'deployed' = live strategies. Pine source is omitted from the list to keep responses concise; use get_strategy to read the full source of a specific strategy.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "dev",
+            "deployed"
+          ],
+          "description": "Filter by mode. Omit to return all."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_strategy",
+    "description": "Read a single strategy by ID, including its full Pine source code.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "create_strategy",
+    "description": "Create a new strategy. The strategy is saved in 'dev' mode by default. Provide a valid Pine Script v5 source.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable strategy name."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Trading pair, e.g. 'BTCUSDT'."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Chart timeframe, e.g. '1h', '4h', '1d'."
+        },
+        "pineSource": {
+          "type": "string",
+          "description": "Full Pine Script v5 source code."
+        },
+        "warmupBars": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "description": "Bars to skip at the start for indicator warmup."
+        },
+        "initialCapital": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Starting account balance in account currency."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "dev",
+            "deployed"
+          ],
+          "description": "Initial mode. Defaults to 'dev'."
+        }
+      },
+      "required": [
+        "name",
+        "symbol",
+        "timeframe",
+        "pineSource"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "update_strategy",
+    "description": "Update an existing strategy. Only the fields you provide are changed; all others remain unchanged.\n\nGIT-COMMIT SEMANTICS — when `pineSource` is in the patch and differs from the current row, the server creates a NEW VERSION instead of mutating in place. The old row stays as read-only history. The response is the new versioned row (status 201) — capture its `id` to keep iterating against the new tip. Trivial edits (name, capital, status, warmupBars, sinks, messageTemplate) update in-place.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to update. If pineSource changes, the response.id is the NEW version id, not this one."
+        },
+        "name": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "timeframe": {
+          "type": "string"
+        },
+        "pineSource": {
+          "type": "string",
+          "description": "Replacement Pine source (full script, not a diff). Setting this to a different value creates a new version."
+        },
+        "warmupBars": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "initialCapital": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "delete_strategy",
+    "description": "Permanently delete a strategy. This cannot be undone.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to delete."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "promote_strategy",
+    "description": "Promote a strategy from 'dev' mode to 'deployed'. Within ~30 seconds the live alerts runtime picks it up and starts evaluating it on every new bar. Fires real Telegram alerts. Returns the updated strategy row.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to promote."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "demote_strategy",
+    "description": "Demote a strategy from 'deployed' back to 'dev'. The live alerts runtime stops evaluating it within ~30 seconds. No alerts will fire after demotion. Returns the updated strategy row.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to demote."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "search_strategies",
+    "description": "Search public strategies by performance criteria. Use this to find candidates the user can fork and iterate on (the leaderboard equivalent of an API call).\n\nAll filters are optional and AND-ed. Numeric filters use min/max bands; ratio fields like Sharpe accept negative numbers. The default sort is `profit` (best net P&L%); other axes: `sharpe`, `sortino`, `drawdown` (ascending — lowest drawdown first), `winrate`, `trades`, `recent`.\n\nEach result includes the strategy id (which fork_strategy / quick_backtest can reference), full backtest KPIs, a `viewUrl` for the human-readable report, and a `forkJsonUrl` — a URL that returns the strategy's name + ID + Pine source + KPI summary as JSON. Fetching the forkJsonUrl gives you everything needed to read or fork without further round-trips.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Exact symbol match, e.g. \"BTCUSDT\"."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Exact timeframe match, e.g. \"1h\", \"15m\"."
+        },
+        "q": {
+          "type": "string",
+          "description": "Substring match on strategy name (case-insensitive)."
+        },
+        "minNetProfitPct": {
+          "type": "number",
+          "description": "Minimum net P&L %. Use 2 to find strategies that gained at least 2%."
+        },
+        "maxNetProfitPct": {
+          "type": "number"
+        },
+        "minProfitFactor": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Profit factor floor. >1 means more gross gain than gross loss."
+        },
+        "minSharpeRatio": {
+          "type": "number",
+          "description": "Sharpe ratio floor. >1 is generally considered respectable."
+        },
+        "minSortinoRatio": {
+          "type": "number"
+        },
+        "maxDrawdownPct": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum tolerable drawdown %."
+        },
+        "minWinRatePct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "minTrades": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum trade count to filter out under-tested strategies."
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "profit",
+            "sharpe",
+            "sortino",
+            "drawdown",
+            "winrate",
+            "trades",
+            "recent"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Max results per page (default 24)."
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "fork_strategy",
+    "description": "Fork a public strategy into your account so you can iterate on it. Returns the new strategy row including its `pineSource`, `id` (the new strategyId), and `version`.\n\nWORKFLOW after forking:\n  1. Read the returned `pineSource`.\n  2. Modify it — add indicators, tighten filters, change exits, swap thresholds.\n  3. Call `quick_backtest` with `strategyId=<new id>` and the modified `pineSource`. That commits a new VERSION (git-style) and runs the backtest in one shot. Each subsequent tweak is another version on the chain.\n  4. Compare the KPIs against the source backtest. Repeat until improvement plateaus.\n\nUse the optional `symbol` and `timeframe` overrides to port the strategy to a different pair or timeframe — useful when a strategy works on BTC but you want to test it on ETH or move from 1h to 4h.\n\nThe fork lineage is preserved: forks of public strategies show up on the report's Iterations panel as a branch off the original tree, so users can see who built on whose work.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "sourceStrategyId": {
+          "type": "string",
+          "description": "Strategy ID to fork. Must be public OR owned by the requester."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Name for the fork. Defaults to \"<source name> (fork)\"."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Override the symbol — port the strategy to a different pair, e.g. fork a BTCUSDT strategy onto ETHUSDT."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Override the timeframe, e.g. move from 1h to 4h."
+        }
+      },
+      "required": [
+        "sourceStrategyId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "pause_strategy",
+    "description": "Pause a deployed strategy. The strategy remains in 'deployed' mode but alerts stop firing immediately. Use this to temporarily silence a strategy without demoting it. Resume with resume_strategy.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to pause."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "resume_strategy",
+    "description": "Resume a paused strategy. Alerts will start firing again on the next bar evaluation (~30s). Returns the updated strategy row.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Strategy ID to resume."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "run_backtest",
+    "description": "Queue a backtest for a saved strategy and return immediately with a jobId. The backtest runs asynchronously — follow up with get_backtest_result to retrieve the result. Tip: get_backtest_result defaults to waiting for completion, so you can call it right away.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "strategyId": {
+          "type": "string",
+          "description": "ID of the saved strategy to backtest."
+        },
+        "from": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Start of the backtest window. ISO date string or Unix ms. Defaults to 90 days ago."
+        },
+        "to": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "End of the backtest window. ISO date string or Unix ms. Defaults to now."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Override the strategy's symbol, e.g. 'ETHUSDT'."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Override the strategy's timeframe, e.g. '4h'."
+        },
+        "initialCapital": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Override the strategy's initial capital."
+        },
+        "commission": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "percent",
+                "cash_per_order",
+                "cash_per_contract"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false,
+          "description": "Override commission settings."
+        },
+        "slippage": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Override slippage in ticks."
+        },
+        "sizing": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed",
+                "cash",
+                "percent_of_equity"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false,
+          "description": "Override position sizing."
+        }
+      },
+      "required": [
+        "strategyId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_backtest_result",
+    "description": "Get the status and (when complete) the full result of a backtest job. By default this waits up to 60 seconds for the job to finish — so you can call it immediately after run_backtest and Claude will get the result in one step. Set waitForCompletion=false to get the current status without waiting.\n\n⚠️ The response may include a `warnings` array. Same rules as `quick_backtest` — if a `cascade_exit_pattern_severe` warning fires, the result is unreliable and you MUST retry with a corrected strategy (single TP+SL, or edge-triggered partial closes).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "description": "Job ID returned by run_backtest."
+        },
+        "waitForCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Poll until done (up to 60s). Default: true."
+        }
+      },
+      "required": [
+        "jobId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "quick_backtest",
+    "description": "Run a backtest synchronously against a Pine Script v5 source.\n\nGIT-COMMIT SEMANTICS — when iterating on a strategy, this tool acts like `git commit`:\n  * First call: pass `name` (you generate this from the strategy's behavior unless the user gave one). The server creates a strategy v1 and returns `strategyId`. The strategy appears on /browse ranked by net P&L%.\n  * Follow-up calls: pass the prior `strategyId` plus the modified `pineSource`. The server creates v2 (then v3, …) and links the chain so users can see iterations on the report's Iterations panel. Same source + same strategyId → no version bump (just another backtest_result attached to the same version).\n  * Sweep mode (parameter optimization): omit BOTH `name` and `strategyId`. The run stays adhoc — no strategy row, no /browse pollution. This is what `optimize_strategy` uses internally.\n\nReturns the full result blob (~1-3s warm, up to 30s cold). To drill in afterwards, pass `result.id` (NOT `result.jobId`) into get_trades / get_equity_curve.\n\n⚠️ WARNINGS — IMPORTANT: the response may include a `warnings` array. ALWAYS check it before reporting results to the user.\n  * `cascade_exit_pattern_severe` (severity 'error'): the strategy is firing `strategy.close()` on every bar that its condition is true (no edge-trigger), producing dozens of partial-close fills per logical entry and paying commission + slippage on each one. The reported net P&L and profit factor are UNRELIABLE. **You MUST retry with a corrected strategy** — either (a) a single take-profit + stop-loss using `strategy.exit(\"X\", \"<id>\", limit=…, stop=…)` (recommended), or (b) edge-triggered multi-TP using `var bool` flags per exit. Tell the user the result is unreliable and you're retrying with a fix.\n  * `cascade_exit_pattern` (severity 'warning'): same pattern but milder — verify the strategy intends multi-fill exits before reporting numbers as final.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pineSource": {
+          "type": "string",
+          "description": "Full Pine Script v5 source to backtest."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Trading pair, e.g. 'BTCUSDT'."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Chart timeframe, e.g. '1h'."
+        },
+        "from": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Start of window. ISO date or Unix ms."
+        },
+        "to": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "End of window. ISO date or Unix ms."
+        },
+        "initialCapital": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "commission": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "percent",
+                "cash_per_order",
+                "cash_per_contract"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "slippage": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sizing": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed",
+                "cash",
+                "percent_of_equity"
+              ]
+            },
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional label for this run, e.g. \"parameter sweep — rsi=20\"."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "description": "Human-readable name for the strategy. Provide this on the FIRST call to save the strategy and make it discoverable on /browse. Generate a descriptive name (e.g. \"RSI Mean-Reversion 14/30/70\") unless the user specified one."
+        },
+        "strategyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Pass the strategyId returned by a previous quick_backtest call to create a new VERSION (git commit) of that strategy. Each version is preserved as history."
+        }
+      },
+      "required": [
+        "pineSource",
+        "symbol",
+        "timeframe"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_trades",
+    "description": "Get the full per-trade list for a completed backtest. Accepts either a saved-strategy job ID (from run_backtest) or an adhoc result ID (from quick_backtest — pass `result.id` or top-level `resultId`, NOT `result.jobId`). Each row includes entry/exit prices, quantity, net P&L (commission-inclusive, matching TradingView's \"Net P&L\" column), gross P&L, commission paid, run-up, drawdown, and cumulative P&L.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "description": "Saved-strategy jobId from run_backtest, OR resultId (`result.id`) from quick_backtest. The `adhoc_…` jobId from quick_backtest does NOT work — use `result.id`."
+        }
+      },
+      "required": [
+        "jobId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_equity_curve",
+    "description": "Get the per-bar equity curve for a completed backtest. Accepts either a saved-strategy job ID (from run_backtest) or an adhoc result ID (from quick_backtest — pass `result.id` or top-level `resultId`, NOT `result.jobId`). Returns barIndex, barTime (Unix ms), equity, drawdown, and netProfit at each bar. Large results are downsampled to maxPoints.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "description": "Saved-strategy jobId from run_backtest, OR resultId (`result.id`) from quick_backtest. The `adhoc_…` jobId from quick_backtest does NOT work — use `result.id`."
+        },
+        "maxPoints": {
+          "type": "integer",
+          "minimum": 10,
+          "default": 1000,
+          "description": "Maximum number of data points to return. Server minimum is 10. Default: 1000."
+        }
+      },
+      "required": [
+        "jobId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "parse_strategy_inputs",
+    "description": "Extract all input.* declarations from a Pine Script source. Returns each input's name, type, default value, and bounds (min/max/step for numerics, options for string enums). Use this to discover what parameters a strategy has before running an optimization sweep.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pineSource": {
+          "type": "string",
+          "description": "Pine Script v5 source to parse."
+        }
+      },
+      "required": [
+        "pineSource"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "optimize_strategy",
+    "description": "Run a parameter sweep over a strategy and return the top N combinations by a chosen metric. Provide either strategyId (loads saved Pine source) or pineSource directly. paramRanges defines which inputs to vary — use explicit values[] or a min/max/step range. The sweep runs up to maxRuns combinations (default 100) in parallel batches of 5. Returns totalRuns, duration, and the top N results sorted by the chosen objective. Note: maxDrawdownPct is minimized; all other objectives are maximized by default.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "strategyId": {
+          "type": "string",
+          "description": "ID of a saved strategy (alternative to pineSource)."
+        },
+        "pineSource": {
+          "type": "string",
+          "description": "Pine source directly (alternative to strategyId)."
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Override symbol. Required if using pineSource without a saved strategy's symbol."
+        },
+        "timeframe": {
+          "type": "string",
+          "description": "Override timeframe."
+        },
+        "from": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "to": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "paramRanges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Input variable name in the Pine source (must match exactly)."
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "Explicit list of values to try."
+              },
+              "min": {
+                "type": "number",
+                "description": "Range start (used with max and optionally step)."
+              },
+              "max": {
+                "type": "number",
+                "description": "Range end."
+              },
+              "step": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Step size. Default: 1."
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "description": "Parameters to sweep. Each entry names an input and its candidate values."
+        },
+        "objective": {
+          "type": "string",
+          "enum": [
+            "netProfit",
+            "profitFactor",
+            "sharpeRatio",
+            "sortinoRatio",
+            "winRatePct",
+            "maxDrawdownPct"
+          ],
+          "description": "Metric to optimize."
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "maximize",
+            "minimize"
+          ],
+          "description": "'minimize' or 'maximize'. Defaults: minimize for maxDrawdownPct, maximize for everything else."
+        },
+        "topN": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 5,
+          "description": "How many top results to return. Default: 5."
+        },
+        "maxRuns": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 100,
+          "description": "Safety cap on total combinations. Default: 100."
+        },
+        "minTrades": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exclude combos that produced fewer than this many trades. Default: 1 (any zero-trade combo is excluded; combos with null sharpeRatio/sortinoRatio are always excluded regardless)."
+        }
+      },
+      "required": [
+        "paramRanges",
+        "objective"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "compare_backtests",
+    "description": "Compare two or more backtest runs side by side. Accepts saved-strategy job IDs (from run_backtest) or adhoc result IDs (from quick_backtest — pass `result.id` or top-level `resultId`, NOT `result.jobId`). Returns both the full result blobs and a diffs summary showing key metrics across all runs. Useful for choosing between parameter sets or evaluating the impact of a code change.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "jobIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2,
+          "description": "List of at least 2 IDs to compare. Each may be a saved-strategy jobId or an adhoc resultId."
+        }
+      },
+      "required": [
+        "jobIds"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "list_active_alerts",
+    "description": "List all deployed strategies that are currently active (firing live alerts). These are strategies in 'deployed' mode with status='active' — they are being evaluated on every new bar by the live runtime. Returns strategy summaries without Pine source.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_recent_signals",
+    "description": "Get recent signals (trade alerts) fired by the live alerts pipeline. Filter by strategy, time range, or signal type. Results are newest-first with cursor pagination — pass nextCursor back as 'cursor' to get the next page.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "strategyId": {
+          "type": "string",
+          "description": "Filter to a specific strategy."
+        },
+        "since": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Start of window. ISO date or Unix ms."
+        },
+        "until": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "End of window. ISO date or Unix ms."
+        },
+        "signalType": {
+          "type": "string",
+          "enum": [
+            "entry",
+            "close",
+            "close_all",
+            "exit_bracket",
+            "cancel",
+            "cancel_all",
+            "risk_halt",
+            "indicator"
+          ],
+          "description": "Filter to a specific signal type."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "default": 100,
+          "description": "Max results. Default: 100."
+        },
+        "cursor": {
+          "type": "integer",
+          "description": "barCloseTime of the last row from a previous page; enables going further back in time."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_signal",
+    "description": "Get a single signal by ID. Returns the full signal including the complete SignalEvent payload and the rendered Telegram message that was dispatched.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Signal ID."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_signal_dispatches",
+    "description": "Get the delivery log for a signal — one row per sink per attempt. Shows whether each sink (Telegram, log, etc.) succeeded or failed, the HTTP status, response body, and timing. Use this to debug 'why didn't my alert arrive?'",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Signal ID."
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_signal_stats",
+    "description": "Get dashboard-level signal counts: total signals fired, total dispatch attempts, failed dispatches, and a breakdown by strategy. Good for answering 'what fired while I was away?' Defaults to the last 24 hours.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "since": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Start of window. ISO date or Unix ms. Default: 24h ago."
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_live_runtime_status",
+    "description": "Get the current status of the live alerts runtime: active shards, WebSocket topics, and bar age per topic (how stale the data is). Returns a structured 503 error if the live runtime is not running — use this to check if the pipeline is healthy before deploying a strategy.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "test_telegram_sink",
+    "description": "Send a test message to a Telegram bot+chat to verify the credentials before saving them to a strategy. Does NOT persist the credentials — the user must save them to the strategy's sinks config separately after a successful test.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "botToken": {
+          "type": "string",
+          "description": "Telegram bot token from @BotFather."
+        },
+        "chatId": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "Telegram chat or channel ID. The bot must have already spoken to this chat at least once."
+        },
+        "text": {
+          "type": "string",
+          "description": "Optional custom test message. Defaults to a standard verification message."
+        }
+      },
+      "required": [
+        "botToken",
+        "chatId"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "get_credits",
+    "description": "Check your TraderDev credit balance. Returns current balance, weekly free credit grant, when the next weekly reset happens, and your subscription tier and status. Each backtest costs 1 credit. Free users receive a weekly top-up automatically. Paid subscribers receive additional credits each month on successful billing.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  {
+    "name": "buy_credits",
+    "description": "Start a monthly subscription to get additional credits. Returns a Stripe Checkout URL — open it in the browser to complete payment. Starter ($9.99/mo): +250 credits on each successful monthly payment. Pro ($19.99/mo): +1000 credits on each successful monthly payment. If a monthly payment fails the credits for that month are NOT granted. Credits resume automatically when the payment succeeds (e.g. after updating card details). Free weekly credits always apply regardless of subscription status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": [
+            "starter",
+            "pro"
+          ],
+          "description": "starter = $9.99/mo (+250 credits), pro = $19.99/mo (+1000 credits)"
+        }
+      },
+      "required": [
+        "tier"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+]
