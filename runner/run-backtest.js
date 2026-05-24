@@ -1,120 +1,126 @@
 #!/usr/bin/env node
 /**
- * Backtest runner — uses `claude --print` with trader-dev MCP.
- * Runs on the self-hosted GitHub Actions runner (local Mac).
- * trader-dev MCP must already be configured in Claude Code.
+ * Backtest runner — calls trader-dev REST API directly.
+ * Works from local Mac (whitelisted). Blocked from cloud container.
  */
 
-const fs            = require('fs');
-const path          = require('path');
-const { execSync }  = require('child_process');
-const os            = require('os');
+const fs    = require('fs');
+const path  = require('path');
+const https = require('https');
 
 const reqFile = process.argv[2];
 if (!reqFile) { console.error('Usage: run-backtest.js <request.json>'); process.exit(1); }
 
 const req = JSON.parse(fs.readFileSync(reqFile, 'utf8'));
 if (req.status !== 'pending') {
-  console.log(`Skipping ${reqFile} — status: ${req.status}`);
+  console.log(`Skipping — status: ${req.status}`);
   process.exit(0);
 }
 
-// Read Pine source
+const API_KEY = process.env.TRADER_DEV_API_KEY;
+if (!API_KEY) { console.error('TRADER_DEV_API_KEY not set'); process.exit(1); }
+
 const repoRoot   = path.resolve(__dirname, '..');
-const pinePath   = path.join(repoRoot, req.pineFile);
-const pineScript = fs.readFileSync(pinePath, 'utf8');
+const pineScript = fs.readFileSync(path.join(repoRoot, req.pineFile), 'utf8');
 
-console.log(`\nRunning: ${req.id}`);
-console.log(`  Symbol:  ${req.symbol} ${req.timeframe}`);
-console.log(`  Period:  ${req.fromDate} → ${req.toDate}`);
-console.log(`  Capital: $${req.initialCapital}`);
-console.log(`  Pine:    ${req.pineFile} (${pineScript.length} chars)`);
+console.log(`Running: ${req.id}`);
+console.log(`  ${req.symbol} ${req.timeframe} | ${req.fromDate} → ${req.toDate} | $${req.initialCapital}`);
 
-// Write prompt to temp file (avoids shell escaping issues)
-const prompt = `
-Use the trader-dev MCP quick_backtest tool to run a backtest with exactly these parameters:
-- symbol: ${req.symbol}
-- timeframe: ${req.timeframe}
-- from_date: ${req.fromDate}
-- to_date: ${req.toDate}
-- initial_capital: ${req.initialCapital}
-- pine_script: the Pine Script below
-
-Pine Script:
-\`\`\`pine
-${pineScript}
-\`\`\`
-
-After the backtest completes, output ONLY a single valid JSON object (no markdown, no explanation) with these exact fields:
-{
-  "resultId": "...",
-  "netProfitPct": 0.0,
-  "profitFactor": 0.0,
-  "maxDrawdownPct": 0.0,
-  "winRate": 0.0,
-  "numTrades": 0,
-  "numLongs": 0,
-  "numShorts": 0,
-  "sharpe": 0.0
-}
-`.trim();
-
-const promptFile = path.join(os.tmpdir(), `bt-prompt-${req.id}.txt`);
-fs.writeFileSync(promptFile, prompt);
-
-let raw = '';
-try {
-  raw = execSync(`claude --print < "${promptFile}"`, {
-    encoding: 'utf8',
-    timeout: 300000,  // 5 min timeout
-    maxBuffer: 10 * 1024 * 1024,
+function post(hostname, pathname, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const opts = {
+      hostname,
+      path: pathname,
+      method: 'POST',
+      headers: {
+        'Authorization':  `Bearer ${API_KEY}`,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+    };
+    const r = https.request(opts, res => {
+      let buf = '';
+      res.on('data', c => buf += c);
+      res.on('end', () => {
+        console.log(`  HTTP ${res.statusCode} from ${hostname}${pathname}`);
+        try { resolve({ status: res.statusCode, body: JSON.parse(buf) }); }
+        catch { resolve({ status: res.statusCode, body: buf }); }
+      });
+    });
+    r.on('error', reject);
+    r.write(data);
+    r.end();
   });
-} catch (err) {
-  console.error('claude --print failed:', err.message);
+}
+
+async function run() {
+  const payload = {
+    symbol:         req.symbol,
+    timeframe:      String(req.timeframe),
+    from:           req.fromDate,
+    to:             req.toDate,
+    initialCapital: req.initialCapital || 10000,
+    pine:           pineScript,
+  };
+
+  // Try known trader-dev endpoints
+  const endpoints = [
+    { host: 'mcp-api.trader.dev', path: '/backtest/quick'  },
+    { host: 'mcp-api.trader.dev', path: '/backtest/run'    },
+    { host: 'mcp-api.trader.dev', path: '/backtest'        },
+    { host: 'api.trader.dev',     path: '/backtest/quick'  },
+  ];
+
+  let res = null;
+  for (const ep of endpoints) {
+    console.log(`  Trying ${ep.host}${ep.path} ...`);
+    try {
+      res = await post(ep.host, ep.path, payload);
+      if (res.status === 200 || res.status === 201) break;
+      console.log(`  → ${res.status}: ${JSON.stringify(res.body).slice(0, 120)}`);
+    } catch (err) {
+      console.log(`  → Error: ${err.message}`);
+    }
+  }
+
+  if (!res || (res.status !== 200 && res.status !== 201)) {
+    // Save raw responses for debugging and mark error
+    req.status   = 'error';
+    req.error    = `All endpoints failed. Last status: ${res?.status}`;
+    req.debugRes = res?.body;
+    fs.writeFileSync(reqFile, JSON.stringify(req, null, 2));
+    console.error('All endpoints failed — see request JSON for details.');
+    process.exit(1);
+  }
+
+  const result = res.body;
+  const kpis   = result.result?.kpis ?? result.kpis ?? {};
+
+  console.log(`\n  ✓ Result ID: ${result.resultId ?? result.id ?? 'unknown'}`);
+  console.log(`    Net P&L:  ${kpis.netProfitPct ?? '?'}%`);
+  console.log(`    PF:       ${kpis.profitFactor ?? '?'}`);
+  console.log(`    Max DD:   ${kpis.maxDrawdownPct ?? '?'}%`);
+  console.log(`    WR:       ${kpis.winRate ?? '?'}%`);
+  console.log(`    Trades:   ${kpis.numTrades ?? '?'}`);
+
+  // Save result
+  const outFile = path.join(repoRoot, 'backtest_results', `${req.id}.json`);
+  fs.writeFileSync(outFile, JSON.stringify({ request: req, result, savedAt: new Date().toISOString() }, null, 2));
+  console.log(`    Saved:    backtest_results/${req.id}.json`);
+
+  // Mark done
+  req.status      = 'done';
+  req.resultFile  = `backtest_results/${req.id}.json`;
+  req.resultId    = result.resultId ?? result.id;
+  req.completedAt = new Date().toISOString();
+  fs.writeFileSync(reqFile, JSON.stringify(req, null, 2));
+}
+
+run().catch(err => {
+  console.error('Fatal:', err.message);
   req.status = 'error';
   req.error  = err.message;
   fs.writeFileSync(reqFile, JSON.stringify(req, null, 2));
-  fs.unlinkSync(promptFile);
   process.exit(1);
-}
-
-fs.unlinkSync(promptFile);
-
-// Extract JSON from output
-let result;
-try {
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON found in output');
-  result = JSON.parse(jsonMatch[0]);
-} catch (err) {
-  console.error('Failed to parse result JSON:', err.message);
-  console.error('Raw output:', raw.slice(0, 500));
-  req.status = 'error';
-  req.error  = 'JSON parse failed: ' + err.message;
-  req.rawOutput = raw.slice(0, 1000);
-  fs.writeFileSync(reqFile, JSON.stringify(req, null, 2));
-  process.exit(1);
-}
-
-console.log(`\n  Result ID:  ${result.resultId}`);
-console.log(`  Net P&L:    ${result.netProfitPct}%`);
-console.log(`  PF:         ${result.profitFactor}`);
-console.log(`  Max DD:     ${result.maxDrawdownPct}%`);
-console.log(`  Win Rate:   ${result.winRate}%`);
-console.log(`  Trades:     ${result.numTrades} (${result.numLongs}L / ${result.numShorts}S)`);
-
-// Save full result
-const outDir  = path.join(repoRoot, 'backtest_results');
-const outFile = path.join(outDir, `${req.id}.json`);
-const full    = { request: req, result, savedAt: new Date().toISOString() };
-fs.writeFileSync(outFile, JSON.stringify(full, null, 2));
-console.log(`  Saved:      backtest_results/${req.id}.json`);
-
-// Mark request done
-req.status      = 'done';
-req.resultFile  = `backtest_results/${req.id}.json`;
-req.resultId    = result.resultId;
-req.completedAt = new Date().toISOString();
-fs.writeFileSync(reqFile, JSON.stringify(req, null, 2));
-
-console.log(`\n  ✓ Done: ${req.id}`);
+});

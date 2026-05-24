@@ -10,24 +10,33 @@ jobs:
     runs-on: self-hosted
     env:
       TRADER_DEV_API_KEY: ${{ secrets.TRADER_DEV_API_KEY }}
+      # Ensure homebrew + nvm + local bin paths are available on Mac runner
+      PATH: /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Diagnostics
+        run: |
+          echo "Node: $(node --version 2>&1 || echo NOT FOUND)"
+          echo "npm:  $(npm --version 2>&1 || echo NOT FOUND)"
+          echo "curl: $(curl --version 2>&1 | head -1 || echo NOT FOUND)"
+          echo "TRADER_DEV_API_KEY set: $( [ -n "$TRADER_DEV_API_KEY" ] && echo YES || echo NO )"
+
       - name: Find pending requests
         id: find
         run: |
-          # grep with flexible spacing around colon
           pending=$(grep -rl '"status"[[:space:]]*:[[:space:]]*"pending"' backtest-requests/ 2>/dev/null || true)
-          echo "Found pending: $pending"
+          echo "Pending requests: ${pending:-none}"
           echo "files=$pending" >> $GITHUB_OUTPUT
 
       - name: Run backtests
         if: steps.find.outputs.files != ''
         run: |
           for req in ${{ steps.find.outputs.files }}; do
-            echo "Processing: $req"
+            echo "==> Processing: $req"
             node runner/run-backtest.js "$req"
           done
 
@@ -36,6 +45,6 @@ jobs:
           git config user.email "runner@claude-mandar"
           git config user.name "Backtest Runner"
           git add backtest-requests/ backtest_results/
-          git diff --staged --quiet && echo "Nothing to commit" || \
+          git diff --staged --quiet && echo "Nothing to commit." || \
             (git commit -m "Backtest results: $(date '+%Y-%m-%d %H:%M')" && \
              git push origin claude/add-trader-dev-mcp-dJbZq)
