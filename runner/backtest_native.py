@@ -7,10 +7,15 @@ Implements strategy_v2_fixed3k.pine exactly in Python:
   price velocity Z-score, volMult × signalMult × streakMult sizing.
 
 Usage:
-  pip install requests pandas numpy
+  # Fetch from Binance (run locally on Mac — cloud IPs are blocked by exchanges):
+  pip install requests pandas numpy pyarrow
   python runner/backtest_native.py
 
-Data cached to backtest_results/ethusdt_1h_binance.parquet on first run.
+  # Use TradingView CSV export instead:
+  python runner/backtest_native.py path/to/ETHUSDT_1h.csv
+
+  TradingView export: chart → right-click → Download history data
+  Data cached to backtest_results/ethusdt_1h_binance.parquet on first Binance run.
 """
 
 import sys, time, json
@@ -419,10 +424,45 @@ def print_results(trades, final_equity, df):
     return t
 
 
+# ── TradingView CSV loader ────────────────────────────────────────────────────
+
+def load_tv_csv(path: str) -> pd.DataFrame:
+    """
+    Load TradingView exported CSV.  TV exports two formats:
+      Format A: time,open,high,low,close,volume  (ISO datetime in 'time')
+      Format B: Unix Timestamp,Date,open,high,low,close,volume
+    """
+    raw = pd.read_csv(path)
+    raw.columns = [c.strip().lower().replace(' ', '_') for c in raw.columns]
+
+    # Detect format
+    if 'unix_timestamp' in raw.columns:
+        raw = raw.rename(columns={'unix_timestamp': 'time'})
+        raw['time'] = raw['time'].astype(int) * 1000
+    elif 'time' in raw.columns:
+        # ISO string or unix ms
+        if raw['time'].dtype == object:
+            raw['time'] = pd.to_datetime(raw['time'], utc=True).astype('int64') // 1_000_000
+        else:
+            raw['time'] = raw['time'].astype(int)
+            if raw['time'].iloc[0] < 1e12:   # unix seconds
+                raw['time'] = raw['time'] * 1000
+
+    df = raw[['time', 'open', 'high', 'low', 'close']].copy()
+    df = df.astype({'time': int, 'open': float, 'high': float, 'low': float, 'close': float})
+    df = df.drop_duplicates('time').sort_values('time').reset_index(drop=True)
+    df['datetime'] = pd.to_datetime(df['time'], unit='ms', utc=True)
+    print(f'Loaded {len(df):,} bars from CSV  ({df["datetime"].iloc[0].date()} → {df["datetime"].iloc[-1].date()})')
+    return df
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
-    df = fetch_binance(symbol='ETHUSDT', interval='1h', years=4.5)
+    if len(sys.argv) > 1:
+        df = load_tv_csv(sys.argv[1])
+    else:
+        df = fetch_binance(symbol='ETHUSDT', interval='1h', years=4.5)
 
     print(f'Computing indicators on {len(df):,} bars...')
     ind = compute_indicators(df)
