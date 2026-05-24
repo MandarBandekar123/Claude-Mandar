@@ -1,7 +1,8 @@
-import { Bybit }    from './bybit.js';
-import { Tracker }  from './tracker.js';
-import { Telegram } from './telegram.js';
-import { config }   from './config.js';
+import { Bybit }         from './bybit.js';
+import { Tracker }       from './tracker.js';
+import { Telegram }      from './telegram.js';
+import { config }        from './config.js';
+import { updateStreak }  from './signal-engine.js';
 
 // Poll every 60s for position closes (TP/SL hit or flip signal)
 export async function startMonitor() {
@@ -70,4 +71,5 @@ async function handleClose(trade) {
   });
   await Telegram.send(msg);
   console.log(`Trade ${trade.id} closed: ${closeReason} | Net P&L: $${netPnl.toFixed(2)}`);
+  updateStreak(netPnl);
 }
