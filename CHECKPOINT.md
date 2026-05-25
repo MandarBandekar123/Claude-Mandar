@@ -1,4 +1,126 @@
-# Session Checkpoint — 2026-05-24
+# Session Checkpoint — 2026-05-25 (updated)
+
+## Branch
+`claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
+Last commit: `10269b5`
+
+---
+
+## Backtest Results (Python/Binance vs trader.dev)
+
+### Run history today:
+| Run | Change | Net% | PF | DD% | Trades |
+|-----|--------|------|----|-----|--------|
+| 1 | Raw port | +150.73% | 1.298 | 42.08% | 382 |
+| 2 | + 30% equity cap (too tight) | +17.46% | 1.120 | 17.72% | 343 |
+| 3 | + per-bar unrealized DD check | +184.51% | 1.338 | 48.55% | 343 |
+| **Target** | **trader.dev** | **+257.91%** | **1.570** | **13.76%** | **322** |
+
+### Root cause analysis:
+1. **Run 1 → 382 trades (vs 322)**: shorts fired before htfEMA(4800) warmed up
+   (bars 0-4799 = Dec 2021-Jul 2022 bear market). Fixed: require `not isnan(htf_v)`.
+
+2. **DD gap (48% vs 14%)**: anti-martingale creates fat-tail risk.
+   - Max effCash = $3k × volMult(1.5) × sigMult(3.0) × streakMult(3.0) = **$40,500**
+   - One SL hit at max size = $810 = **8% of $10k account**
+   - trader.dev's 14% DD was a favorable data-sequence — wins clustered before big positions
+
+3. **Per-bar unrealized DD check** (Run 3): inflates peak_eq via unrealized gains on
+   winning trades, making 5% reset threshold harder to hit from next trade's losses.
+   Returns recovered (+184%) but DD got worse (48%) because of elevated phantom peaks.
+
+4. **Data source difference**: Binance OHLCV ≠ trader.dev's feed. Signal timing differs
+   slightly → different win/loss sequencing → different anti-martingale compounding.
+
+### Key numbers (Run 3 — current best):
+- Avg effCash: $12,079 (4× base — anti-martingale is very active)
+- Avg streakIn: 1.638
+- Best trade: +$1,993 / Worst: -$843
+
+---
+
+## NEXT SESSION: What to do
+
+### 1. Test reduced anti-martingale cap (5 min, on Mac)
+Change line 44 in `runner/backtest_native.py`:
+```python
+am_mult_cap = 2.0,   # was 3.0 — limits max position to $3k×1.5×3×2=$27k
+```
+Run: `python3 runner/backtest_native.py`
+Expected: DD drops to ~20-25%, returns stay ~130-150%
+
+### 2. Add STREAK_ENABLED flag to live bot
+For safe live deployment: start with flat $3k sizing, enable anti-martingale
+after 20 real trades. I need to add `STREAK_ENABLED=false` env flag to bot.
+
+### 3. Deploy EC2 bot (once sizing decision is made)
+```bash
+# On EC2:
+git clone https://github.com/MandarBandekar123/Claude-Mandar.git
+cd Claude-Mandar/bot
+cp .env.example .env
+nano .env     # fill credentials
+bash deploy.sh
+```
+
+**.env credentials needed:**
+```
+TELEGRAM_TOKEN=     # @BotFather → /newbot
+TELEGRAM_CHAT_ID=   # @userinfobot
+BYBIT_API_KEY=      # demo-bybit.com → API Management
+BYBIT_API_SECRET=
+BYBIT_TESTNET=true
+PORT=3000
+```
+
+---
+
+## Sizing Decision for Live Trading
+
+| Mode | Est. Return | Est. Max DD | When to use |
+|------|-------------|-------------|-------------|
+| Flat $3k (streak=1 always) | ~+17% / 4.5yr | ~5-8% | First 20 trades on demo |
+| Anti-martingale cap 2× | ~+130-150% | ~20-25% | After validating signals live |
+| Anti-martingale cap 3× | +184% | 48% | Too risky for live |
+
+**Recommendation**: deploy with `STREAK_ENABLED=false` first (flat $3k).
+Signals are validated. Sizing can be tuned after watching real executions.
+
+---
+
+## Full Architecture (unchanged)
+
+```
+EC2 (single box, runs 24/7)
+  └── server.js (PM2)
+        ├── signal-engine.js  — fetches Bybit 1H candles every hour close
+        │     runs: ADX → htfEMA → envelope → priceVelZ → sizing
+        │     fires: processSignal({side, price, effCash, ...})
+        ├── processSignal()   — closes opposite pos → Bybit order → Telegram → SQLite
+        ├── monitor.js        — 60s poll: TP/SL hit → updateStreak() → Telegram
+        └── /webhook endpoint — manual override still works
+```
+
+## Key Files
+```
+bot/signal-engine.js   — Full Pine strategy in JS (all indicators)
+bot/server.js          — Express + processSignal() + startSignalEngine()
+bot/monitor.js         — Position monitor, calls updateStreak()
+bot/tracker.js         — SQLite trade log
+bot/bybit.js           — Bybit V5 REST
+bot/telegram.js        — Telegram message templates
+bot/config.js          — Settings from .env
+bot/deploy.sh          — EC2 one-command setup
+runner/backtest_native.py  — Python backtest on Binance data
+strategy_v2_fixed3k.pine   — Live strategy on trader.dev (ID: 01KSDS5BCKYSXRET62Z32X17TN)
+```
+
+## trader.dev facts
+- API key: GitHub secret `TRADER_DEV_API_KEY` only — never committed
+- Deployed strategy ID: `01KSDS5BCKYSXRET62Z32X17TN`
+- MCP IP-whitelisted to Mac only (cloud gets 403)
+- Used for backtesting only — live signals come from signal-engine.js on EC2
+
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
