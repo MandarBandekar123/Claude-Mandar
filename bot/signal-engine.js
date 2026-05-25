@@ -24,7 +24,8 @@ const P = {
   detrendLen:  50,    // SMA detrend length
   ddResetPct:  5.0,   // streak reset drawdown %
   baseCash:    3000.0,
-  amMultCap:   3.0,   // max streak multiplier
+  amMultCap:   3.0,
+  maxRiskPct:  30.0,   // effCash never exceeds 30% of current equity   // max streak multiplier
   htfEMALen:   4800,  // 200-day EMA proxy on 1H bars
   envSmoothLen: 10,
   envSlopeLen:  10,
@@ -303,7 +304,10 @@ export async function runSignalCheck(onSignal) {
   const absPVZ     = Math.abs(priceVelZ);
   const signalMult = Math.max(1.0, Math.min(3.0, absPVZ));
   const { streakMult } = loadState();
-  const effCash    = P.baseCash * volMult * signalMult * streakMult;
+  const totalPnl   = parseFloat(Tracker.stats()?.netPnl ?? 0);
+  const equity     = 10000 + totalPnl;
+  const maxCash    = equity * P.maxRiskPct / 100;
+  const effCash    = Math.min(P.baseCash * volMult * signalMult * streakMult, maxCash);
 
   const meta = {
     effCash,

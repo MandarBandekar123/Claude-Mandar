@@ -42,6 +42,7 @@ P = dict(
     dd_reset_pct  = 5.0,     # streak resets when equity drops 5% from peak
     base_cash     = 3000.0,
     am_mult_cap   = 3.0,     # max streak multiplier
+    max_risk_pct  = 30.0,    # effCash never exceeds this % of current equity (risk cap)
     htf_ema_len   = 4800,    # 200-day EMA proxy on 1H bars
     env_smooth    = 10,
     env_slope_len = 10,
@@ -325,15 +326,17 @@ def run_backtest(df: pd.DataFrame, ind: pd.DataFrame):
                 position = None
 
         # ── Step 3: New entry at bar close ────────────────────────────────────
-        if position is None and ready:
+        if position is None and ready and not np.isnan(htf_v):  # require valid htfEMA
             side_in = None
-            if go_long:   side_in = 'long'
+            if go_long:    side_in = 'long'
             elif go_short: side_in = 'short'
 
             if side_in:
                 vm        = float(vm_v) if not np.isnan(vm_v) else 1.0
                 sig_m     = max(1.0, min(3.0, abspvz))
                 eff_cash  = P['base_cash'] * vm * sig_m * streak
+                # Cap: never risk more than max_risk_pct% of current equity in one trade
+                eff_cash  = min(eff_cash, equity * P['max_risk_pct'] / 100)
                 qty       = eff_cash / close
                 tp = close * (1 + P['tp_pct']/100) if side_in == 'long' else close * (1 - P['tp_pct']/100)
                 sl = close * (1 - P['sl_pct']/100) if side_in == 'long' else close * (1 + P['sl_pct']/100)
