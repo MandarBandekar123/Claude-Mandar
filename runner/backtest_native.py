@@ -42,7 +42,6 @@ P = dict(
     dd_reset_pct  = 5.0,     # streak resets when equity drops 5% from peak
     base_cash     = 3000.0,
     am_mult_cap   = 3.0,     # max streak multiplier
-    max_risk_pct  = 30.0,    # effCash never exceeds this % of current equity (risk cap)
     htf_ema_len   = 4800,    # 200-day EMA proxy on 1H bars
     env_smooth    = 10,
     env_slope_len = 10,
@@ -238,13 +237,6 @@ def _record_close(pos, exit_px, reason, trades):
     return net
 
 
-def _next_streak(streak, net_pnl, equity, peak_eq):
-    dd = (peak_eq - equity) / peak_eq * 100 if peak_eq > 0 else 0
-    if dd > P['dd_reset_pct']:
-        return 1.0
-    return (min(P['am_mult_cap'], streak * P['growth_rate']) if net_pnl > 0
-            else max(1.0, streak * P['decay_rate']))
-
 
 # ── Main backtest loop ────────────────────────────────────────────────────────
 
@@ -290,6 +282,24 @@ def run_backtest(df: pd.DataFrame, ind: pd.DataFrame):
         go_short = exp_edge and pv < 0 and abspvz > P['min_vel_z'] and not sideways
         ready    = i > P['warmup']
 
+        # ── Pine-exact: update peak equity + streak DD check EVERY BAR ───────
+        # Pine's strategy.equity includes unrealized P&L; peakEquity and
+        # ddFromPeak are recomputed on each bar close before entry/exit logic.
+        if position is not None:
+            p = position
+            unreal = ((close - p['entry']) * p['qty'] if p['side'] == 'long'
+                      else (p['entry'] - close) * p['qty'])
+            cur_equity = equity + unreal
+        else:
+            cur_equity = equity
+
+        if cur_equity > peak_eq:
+            peak_eq = cur_equity
+        dd_pct = (peak_eq - cur_equity) / peak_eq * 100 if peak_eq > 0 else 0
+        if dd_pct > P['dd_reset_pct']:
+            streak  = 1.0
+            peak_eq = cur_equity   # reset peak too (matches Pine)
+
         # ── Step 1: Check TP / SL intrabar ───────────────────────────────────
         if position is not None:
             p  = position
@@ -305,8 +315,9 @@ def run_backtest(df: pd.DataFrame, ind: pd.DataFrame):
             if cl:
                 net = _record_close(p, ep, cl, trades)
                 equity += net
-                if equity > peak_eq: peak_eq = equity
-                streak   = _next_streak(streak, net, equity, peak_eq)
+                # Win/loss streak update (DD reset already handled per-bar above)
+                streak = (min(P['am_mult_cap'], streak * P['growth_rate']) if net > 0
+                          else max(1.0, streak * P['decay_rate']))
                 position = None
 
         # ── Step 2: Bar-close exits (regime / sideways / flip) ───────────────
@@ -321,12 +332,12 @@ def run_backtest(df: pd.DataFrame, ind: pd.DataFrame):
             if reason:
                 net = _record_close(p, close, reason, trades)
                 equity += net
-                if equity > peak_eq: peak_eq = equity
-                streak   = _next_streak(streak, net, equity, peak_eq)
+                streak = (min(P['am_mult_cap'], streak * P['growth_rate']) if net > 0
+                          else max(1.0, streak * P['decay_rate']))
                 position = None
 
         # ── Step 3: New entry at bar close ────────────────────────────────────
-        if position is None and ready and not np.isnan(htf_v):  # require valid htfEMA
+        if position is None and ready and not np.isnan(htf_v):
             side_in = None
             if go_long:    side_in = 'long'
             elif go_short: side_in = 'short'
@@ -335,8 +346,6 @@ def run_backtest(df: pd.DataFrame, ind: pd.DataFrame):
                 vm        = float(vm_v) if not np.isnan(vm_v) else 1.0
                 sig_m     = max(1.0, min(3.0, abspvz))
                 eff_cash  = P['base_cash'] * vm * sig_m * streak
-                # Cap: never risk more than max_risk_pct% of current equity in one trade
-                eff_cash  = min(eff_cash, equity * P['max_risk_pct'] / 100)
                 qty       = eff_cash / close
                 tp = close * (1 + P['tp_pct']/100) if side_in == 'long' else close * (1 - P['tp_pct']/100)
                 sl = close * (1 - P['sl_pct']/100) if side_in == 'long' else close * (1 + P['sl_pct']/100)
