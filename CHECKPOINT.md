@@ -1,6 +1,6 @@
-# Session Checkpoint — 2026-05-26
+# Session Checkpoint — 2026-05-26 (updated PM)
 
-## Current Status: BOT IS LIVE ON EC2 ✅
+## Current Status: BOT IS LIVE ON EC2, DEMO ENDPOINT ✅
 
 ### EC2 Instance
 - **IP**: 47.129.55.50
@@ -12,27 +12,53 @@
 - **PM2 process**: `f40d-bot` (running, auto-restart enabled)
 
 ### Bot State
-- Bybit Demo (testnet) connected — 5× leverage on ETHUSDT
+- Bybit **Demo Trading** (api-demo.bybit.com) connected — 5× leverage on ETHUSDT
 - 5000 1H candles loaded — signal engine armed
 - Telegram connected — chat ID 6109181833
 - streakMult = 1.0 (fresh start, no trades yet)
 - Next signal check: fires 65s past every hour close
 
-### Verified working
+### Verified working (latest restart)
 ```
 Leverage set: 5x on ETHUSDT
-Bybit TESTNET ready | 5x leverage on ETHUSDT
+Bybit DEMO ready | 5x leverage on ETHUSDT       ← confirms api-demo endpoint
 Position monitor started (60s interval)
 Signal engine: 5000 candles ready — engine armed
 Signal engine: next check in XX min
 ```
 Telegram startup message received ✅
 
+### Today's fix (PM session)
+- **Problem**: orders failed with `Bybit order failed: API key is invalid.` even though startup said `Bybit TESTNET ready`.
+- **Root cause**: `bybit-api` lib treats `testnet:true` (api-testnet.bybit.com) and `demoTrading:true` (api-demo.bybit.com) as **separate endpoints**. Demo Trading keys don't authenticate on testnet.
+- **Fix** (commit `de09e95`): renamed env var `BYBIT_TESTNET` → `BYBIT_DEMO`, switched RestClientV5 flag to `demoTrading: config.bybitDemo`. Touched: `bybit.js`, `config.js`, `server.js`, `telegram.js`, `deploy.sh`, `.env.example`.
+- **Deploy steps that worked**:
+  ```bash
+  ssh ec2-user@47.129.55.50
+  cd /home/ec2-user/f40d-bot
+  git pull origin claude/add-trader-dev-mcp-dJbZq
+  # edit .env: rename BYBIT_TESTNET=true → BYBIT_DEMO=true
+  pm2 restart f40d-bot
+  ```
+- **Stale error**: the `API key is invalid` line in `f40d-bot-error.log` is from before the restart (PM2 doesn't auto-flush). Run `pm2 flush f40d-bot` to clear.
+
+### Bybit Demo Trading key
+- Created on **Demo Trading** tab at https://www.bybitglobal.com/app/user/api-management (orange "Demo Trading" toggle, top-left).
+- Key name on Bybit: `Claude_bot_fail1` (the "fail" was our bug, key itself is fine).
+- Permissions: Contracts — Orders + Positions ✅
+- IP binding: not bound (key expires in 3 months). If you want permanent, bind to `47.129.55.50` on Bybit.
+- Key/secret live in `/home/ec2-user/f40d-bot/bot/.env` on EC2 only.
+
+### Pending verification (tomorrow)
+- Wait for next signal tick (hour close + 65s) to confirm an actual order submits without `API key is invalid`.
+- Optional sanity test: `curl -X POST localhost:3000/webhook -H 'Content-Type: application/json' -d '{"side":"buy","price":3500}'` from EC2 to force an order through.
+- Then monitor 30–40 demo trades → review → flip `BYBIT_DEMO=false` to go live.
+
 ---
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `2b0c2f1` — Add EC2 deploy script
+Last commit: `de09e95` — Fix: route Bybit client to demo trading endpoint
 
 ---
 
@@ -159,4 +185,4 @@ git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `2b0c2f1`
+Last commit: `de09e95` — Fix: route Bybit client to demo trading endpoint
