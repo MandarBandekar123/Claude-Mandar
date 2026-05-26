@@ -86,15 +86,122 @@ Monitoring position...`;
 <b>Account</b>: $${fmt(accountBalance)}`;
   },
 
+  dailyDashboard({ date, openTrade, currentPrice, unrealisedPnl,
+                   todayTrades, allStats, streakMult, peakEquity,
+                   equity, ddPct, nextHourIn }) {
+    const dow   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getUTCDay()];
+    const dstr  = `${dow} ${date.toISOString().slice(0,10)}`;
+    const mode  = config.bybitTestnet ? 'DEMO — Bybit Testnet' : 'LIVE — Bybit';
+    const sep   = '━━━━━━━━━━━━━━━━━━━━━━';
+
+    // ── Open position block ───────────────────────────────────────────────────
+    let posBlock = `📍 <b>OPEN POSITION</b>\nNone — flat`;
+    if (openTrade && currentPrice) {
+      const t       = openTrade;
+      const side    = t.side === 'Buy' ? '🟢 LONG' : '🔴 SHORT';
+      const movePct = ((currentPrice - t.entryPrice) / t.entryPrice * 100 * (t.side === 'Buy' ? 1 : -1));
+      const heldMin = Math.round((Date.now() - new Date(t.openedAt)) / 60000);
+      const heldStr = heldMin >= 60 ? `${Math.floor(heldMin/60)}h ${heldMin%60}m` : `${heldMin}m`;
+      const distToTp = Math.abs((t.tpPrice - currentPrice) / currentPrice * 100).toFixed(1);
+      const distToSl = Math.abs((t.slPrice - currentPrice) / currentPrice * 100).toFixed(1);
+      posBlock =
+`📍 <b>OPEN POSITION</b>
+${side} ETHUSDT
+  Entry:      $${fmt(t.entryPrice)}
+  Now:        $${fmt(currentPrice)}  (${sign(movePct)}${fmt(movePct, 2)}%)
+  Size:       ${fmt(t.qty, 3)} ETH  ($${fmt(t.notional, 0)} notional)
+  TP:         $${fmt(t.tpPrice)}  (${distToTp}% away)
+  SL:         $${fmt(t.slPrice)}  (${distToSl}% away)
+  Unrealised: <b>${sign(unrealisedPnl)}$${fmt(Math.abs(unrealisedPnl))}</b>
+  Open:       ${heldStr} ago`;
+    }
+
+    // ── Today's trades block ──────────────────────────────────────────────────
+    const todayClosed = (todayTrades || []).filter(t => t.status === 'closed');
+    const todayOpen   = (todayTrades || []).filter(t => t.status === 'open');
+    let todayNet = todayClosed.reduce((s, t) => s + (t.netPnl || 0), 0);
+    let todayBlock = `📅 <b>TODAY</b>  (no trades)`;
+    if (todayClosed.length || todayOpen.length) {
+      const lines = todayClosed.map(t => {
+        const e = t.netPnl >= 0 ? '✅' : '❌';
+        const s = t.side === 'Buy' ? 'LONG' : 'SHORT';
+        return `  ${e} ${s}: ${sign(t.netPnl)}$${fmt(Math.abs(t.netPnl))} (${t.closeReason || '?'})`;
+      });
+      if (todayOpen.length) lines.push(`  🕐 ${todayOpen.length} position open`);
+      todayBlock =
+`📅 <b>TODAY</b>  (${todayClosed.length} closed)
+${lines.join('\n')}
+  Net today:  <b>${sign(todayNet)}$${fmt(Math.abs(todayNet))}</b>`;
+    }
+
+    // ── All-time stats block ──────────────────────────────────────────────────
+    let statsBlock = `📈 <b>ALL-TIME</b>\nNo closed trades yet`;
+    if (allStats) {
+      const livePF = parseFloat(allStats.netPnl) >= 0 && allStats.total > 0
+        ? (parseFloat(allStats.netPnl) > 0 ? '>' : '') + '1.0' : '<1.0';
+      const gross_w = allStats.wins > 0 ? '+' : '';
+      statsBlock =
+`📈 <b>ALL-TIME</b>  (${allStats.total} trades)
+  Win / Loss: ${allStats.wins}W / ${allStats.losses}L  (${allStats.winRate}% WR)
+  Net P&amp;L:    <b>${sign(parseFloat(allStats.netPnl))}$${Math.abs(parseFloat(allStats.netPnl)).toFixed(2)}</b>
+  Fees paid:  -$${allStats.totalFees}
+  Best trade: +$${allStats.bestTrade}
+  Worst:      -$${Math.abs(allStats.worstTrade)}
+  Max DD:     -$${allStats.maxDD}`;
+    }
+
+    // ── Sizing state block ────────────────────────────────────────────────────
+    const nextEff = fmt(3000 * 1.2 * 2.0 * streakMult, 0); // approx next trade size
+    const sizingBlock =
+`⚙️ <b>SIZING STATE</b>
+  Streak mult:  ${fmt(streakMult, 2)}×
+  Est. effCash: ~$${nextEff}  (base × vol × sig × streak)
+  Account eq.:  ~$${fmt(equity, 0)}
+  DD from peak: ${fmt(ddPct, 1)}%  (peak $${fmt(peakEquity, 0)})`;
+
+    // ── Strategy health ───────────────────────────────────────────────────────
+    const livePF = allStats
+      ? (() => {
+          const s = allStats;
+          const wins = parseFloat(s.bestTrade) > 0 && s.wins > 0;
+          // approximate PF from tracker stats
+          return s.total > 0 ? fmt(Math.max(0,
+            (s.wins * parseFloat(s.bestTrade || 0)) /
+            Math.max(1, s.losses * Math.abs(parseFloat(s.worstTrade || 1)))
+          ), 2) : 'n/a';
+        })()
+      : 'n/a';
+    const onTrack = allStats && parseFloat(allStats.netPnl) > 0 ? '✅ Positive P&L' : '⏳ Building sample';
+    const nextCheck = nextHourIn ? `${nextHourIn}m` : 'next hour close';
+    const healthBlock =
+`📊 <b>STRATEGY vs BACKTEST</b>
+  Win Rate:   ${allStats?.winRate ?? '—'}%   (backtest: 32%)
+  Mode:       ${mode}
+  Status:     ${onTrack}
+  Next signal check: ${nextCheck}`;
+
+    return `📊 <b>F40d C104 — Daily Dashboard</b>
+${dstr}
+${sep}
+${posBlock}
+${sep}
+${todayBlock}
+${sep}
+${statsBlock}
+${sep}
+${sizingBlock}
+${sep}
+${healthBlock}`;
+  },
+
   async startupMsg(ip) {
     await this.send(`🤖 <b>F40d C104 Bot ONLINE</b>
 ━━━━━━━━━━━━━━━━━━━━━━
-Strategy: Fixed $3k Base — ETHUSDT 1H
-Exchange:  Bybit Demo (testnet)
-Leverage:  ${config.leverage}x
-TP / SL:   ${config.tpPct}% / ${config.slPct}%
+Strategy: ETHUSDT 1H — Hilbert Envelope
+Exchange:  ${config.bybitTestnet ? 'Bybit Demo (testnet)' : 'Bybit Live'}
+Leverage:  ${config.leverage}x  |  TP ${config.tpPct}% / SL ${config.slPct}%
+Signal:    Native engine — checks every 1H bar close
 ━━━━━━━━━━━━━━━━━━━━━━
-Webhook:   http://${ip}:${config.port}/webhook
-Waiting for trader-dev signals...`);
+Port: ${config.port}  |  Waiting for first signal...`);
   },
 };

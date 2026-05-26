@@ -5,8 +5,8 @@ import { config }    from './config.js';
 import { Bybit }     from './bybit.js';
 import { Tracker }   from './tracker.js';
 import { Telegram }  from './telegram.js';
-import { startMonitor }      from './monitor.js';
-import { startSignalEngine } from './signal-engine.js';
+import { startMonitor }                  from './monitor.js';
+import { startSignalEngine, getState }  from './signal-engine.js';
 
 const app = express();
 app.use(express.json());
@@ -138,7 +138,51 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', openTrades: open.length, open });
 });
 
+// ── Daily dashboard: every day at 08:00 UTC ──────────────────────────────────
+cron.schedule('0 8 * * *', async () => {
+  try {
+    const open       = Tracker.getOpen();
+    const todayTrades = Tracker.today();
+    const allStats   = Tracker.stats();
+    const { streakMult, peakEquity } = getState();
+    const totalPnl   = parseFloat(allStats?.netPnl ?? 0);
+    const equity     = 10000 + totalPnl;
+    const ddPct      = peakEquity > equity ? (peakEquity - equity) / peakEquity * 100 : 0;
+
+    let currentPrice = null;
+    let unrealisedPnl = 0;
+    if (open.length) {
+      try { currentPrice = await Bybit.getPrice(config.symbol); } catch {}
+      if (currentPrice) {
+        const t = open[0];
+        unrealisedPnl = t.side === 'Buy'
+          ? (currentPrice - t.entryPrice) * t.qty
+          : (t.entryPrice - currentPrice) * t.qty;
+      }
+    }
+
+    // Minutes until next hour-close signal check
+    const now = new Date();
+    const nextHourIn = 60 - now.getUTCMinutes();
+
+    await Telegram.send(Telegram.dailyDashboard({
+      date: now,
+      openTrade:     open[0] || null,
+      currentPrice,
+      unrealisedPnl,
+      todayTrades,
+      allStats,
+      streakMult,
+      peakEquity:    peakEquity || equity,
+      equity,
+      ddPct,
+      nextHourIn,
+    }));
+  } catch (e) { console.error('Daily dashboard error:', e.message); }
+});
+
 // ── Weekly report: every Monday 08:00 UTC ────────────────────────────────────
+// (Kept for deeper weekly analysis alongside the daily)
 cron.schedule('0 8 * * 1', async () => {
   const since    = new Date(Date.now() - 7 * 86400000).toISOString();
   const stats    = Tracker.stats(since);

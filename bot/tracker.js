@@ -54,6 +54,11 @@ export const Tracker = {
     return db.prepare(`SELECT * FROM trades WHERE id=?`).get(id);
   },
 
+  today() {
+    const start = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+    return db.prepare(`SELECT * FROM trades WHERE openedAt >= ? ORDER BY openedAt DESC`).all(start);
+  },
+
   // Stats for reporting
   stats(since) {
     const rows = since

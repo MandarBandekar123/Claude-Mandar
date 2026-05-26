@@ -174,6 +174,8 @@ function saveState(s) {
   writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
 }
 
+export function getState() { return loadState(); }
+
 // Called by monitor.js after each trade closes
 export function updateStreak(netPnl) {
   const s      = loadState();
