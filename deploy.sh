@@ -48,7 +48,7 @@ if [[ ! -f .env ]]; then
   echo "    TELEGRAM_CHAT_ID=   (from @userinfobot)"
   echo "    BYBIT_API_KEY=      (demo-bybit.com → API Management)"
   echo "    BYBIT_API_SECRET=   (demo-bybit.com → API Management)"
-  echo "    BYBIT_TESTNET=true  (keep true for demo)"
+  echo "    BYBIT_DEMO=true     (keep true for demo trading)"
   echo ""
   echo "  Then run:  bash deploy.sh --start"
   echo ""

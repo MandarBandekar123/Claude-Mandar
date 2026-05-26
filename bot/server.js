@@ -195,7 +195,7 @@ cron.schedule('0 8 * * 1', async () => {
 async function start() {
   try {
     await Bybit.setLeverage(config.symbol, config.leverage);
-    console.log(`Bybit ${config.bybitTestnet ? 'TESTNET' : 'LIVE'} ready | ${config.leverage}x leverage on ${config.symbol}`);
+    console.log(`Bybit ${config.bybitDemo ? 'DEMO' : 'LIVE'} ready | ${config.leverage}x leverage on ${config.symbol}`);
   } catch (e) { console.error('Bybit init error:', e.message); }
 
   startMonitor();

@@ -8,7 +8,7 @@ export const config = {
   // Bybit
   bybitKey:       process.env.BYBIT_API_KEY,
   bybitSecret:    process.env.BYBIT_API_SECRET,
-  bybitTestnet:   process.env.BYBIT_TESTNET !== 'false', // default: testnet
+  bybitDemo:      process.env.BYBIT_DEMO !== 'false', // default: demo trading (api-demo.bybit.com)
 
   // Strategy
   symbol:         'ETHUSDT',
@@ -18,7 +18,7 @@ export const config = {
   tpPct:          5.0,         // matches Pine strategy
   bybitCategory:  'linear',    // USDT perpetuals
 
-  // Bybit fees (testnet mirrors live)
+  // Bybit fees (demo mirrors live)
   takerFee:       0.0006,      // 0.06% market orders
   makerFee:       0.0001,      // 0.01% limit orders (TP)
 

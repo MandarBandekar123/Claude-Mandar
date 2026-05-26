@@ -4,7 +4,7 @@ import { config } from './config.js';
 const client = new RestClientV5({
   key:     config.bybitKey,
   secret:  config.bybitSecret,
-  testnet: config.bybitTestnet,
+  demoTrading: config.bybitDemo,
 });
 
 export const Bybit = {

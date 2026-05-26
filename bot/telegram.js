@@ -91,7 +91,7 @@ Monitoring position...`;
                    equity, ddPct, nextHourIn }) {
     const dow   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getUTCDay()];
     const dstr  = `${dow} ${date.toISOString().slice(0,10)}`;
-    const mode  = config.bybitTestnet ? 'DEMO — Bybit Testnet' : 'LIVE — Bybit';
+    const mode  = config.bybitDemo ? 'DEMO — Bybit' : 'LIVE — Bybit';
     const sep   = '━━━━━━━━━━━━━━━━━━━━━━';
 
     // ── Open position block ───────────────────────────────────────────────────
@@ -198,7 +198,7 @@ ${healthBlock}`;
     await this.send(`🤖 <b>F40d C104 Bot ONLINE</b>
 ━━━━━━━━━━━━━━━━━━━━━━
 Strategy: ETHUSDT 1H — Hilbert Envelope
-Exchange:  ${config.bybitTestnet ? 'Bybit Demo (testnet)' : 'Bybit Live'}
+Exchange:  ${config.bybitDemo ? 'Bybit Demo' : 'Bybit Live'}
 Leverage:  ${config.leverage}x  |  TP ${config.tpPct}% / SL ${config.slPct}%
 Signal:    Native engine — checks every 1H bar close
 ━━━━━━━━━━━━━━━━━━━━━━
