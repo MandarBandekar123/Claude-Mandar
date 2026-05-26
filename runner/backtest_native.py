@@ -483,13 +483,101 @@ def main():
     valid_htf = ind['htf_ema'].notna().sum()
     print(f'  htf_ema valid for {valid_htf:,} bars  (needs ≥4800 to seed)')
 
-    print('Running backtest...')
-    t0            = time.time()
-    trades, final = run_backtest(df, ind)
-    elapsed       = time.time() - t0
-    print(f'  Done in {elapsed:.1f}s  →  {len(trades)} trades')
+    scenarios = [
+        ('Flat $3k (no multipliers)',    dict(am_mult_cap=1.0, growth_rate=1.0, decay_rate=1.0)),
+        ('Streak disabled, vol+sig on',  dict(am_mult_cap=1.0)),
+        ('Streak cap 2×',                dict(am_mult_cap=2.0)),
+        ('Streak cap 3× (full)',         dict(am_mult_cap=3.0)),
+    ]
 
-    print_results(trades, final, df)
+    rows = []
+    for label, overrides in scenarios:
+        orig = {k: P[k] for k in overrides}
+        P.update(overrides)
+        trades, final = run_backtest(df, ind)
+        rows.append((label, trades, final))
+        P.update(orig)   # restore
+
+    _print_comparison(rows, df)
+
+    # Save full trade log for the streak-disabled scenario
+    _, trades_sd, _ = rows[1]
+    t = pd.DataFrame(trades_sd)
+    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    t.to_csv(OUT_CSV, index=False)
+    print(f'\n  Full trade log (streak disabled) → {OUT_CSV.relative_to(ROOT)}')
+
+
+def _stats(trades):
+    if not trades:
+        return {}
+    t       = pd.DataFrame(trades)
+    net     = t['net_pnl'].sum()
+    wins    = t[t['net_pnl'] > 0]
+    losses  = t[t['net_pnl'] <= 0]
+    gw      = wins['net_pnl'].sum()   if len(wins)   else 0.0
+    gl      = losses['net_pnl'].abs().sum() if len(losses) else 1e-9
+    pf      = gw / gl if gl > 0 else float('inf')
+    wr      = len(wins) / len(t) * 100
+    eq      = P['init_capital'] + t['net_pnl'].cumsum()
+    max_dd  = (eq - eq.cummax()).min()
+    pnls    = t['net_pnl'].values
+    tpy     = len(t) / 4.5
+    sharpe  = pnls.mean() / pnls.std() * tpy**0.5 if pnls.std() > 0 else 0
+    fees    = (t['entry_fee'] + t['exit_fee']).sum()
+    return dict(net=net, net_pct=net/P['init_capital']*100, pf=pf, wr=wr,
+                max_dd=max_dd, max_dd_pct=max_dd/P['init_capital']*100,
+                sharpe=sharpe, trades=len(t), wins=len(wins),
+                avg_win=wins['net_pnl'].mean() if len(wins) else 0,
+                avg_loss=losses['net_pnl'].mean() if len(losses) else 0,
+                best=t['net_pnl'].max(), worst=t['net_pnl'].min(),
+                fees=fees, avg_cash=t['notional'].mean())
+
+
+def _print_comparison(rows, df):
+    d0  = pd.to_datetime(df['time'].iloc[P['warmup']], unit='ms').strftime('%Y-%m-%d')
+    d1  = pd.to_datetime(df['time'].iloc[-1],          unit='ms').strftime('%Y-%m-%d')
+    bar = '=' * 74
+
+    print(f'\n{bar}')
+    print(f'  F40d C104 — Scenario Comparison  |  ETHUSDT 1H  |  {d0} → {d1}')
+    print(bar)
+
+    stats = [(label, _stats(trades)) for label, trades, _ in rows]
+
+    # Header
+    print(f'  {"Metric":<22}', end='')
+    for label, _ in stats:
+        print(f'  {label:<22}', end='')
+    print()
+    print(f'  {"-"*22}', end='')
+    for _ in stats:
+        print(f'  {"-"*22}', end='')
+    print()
+
+    def row(name, key, fmt):
+        print(f'  {name:<22}', end='')
+        for _, s in stats:
+            v = s.get(key, 0)
+            print(f'  {fmt.format(v):<22}', end='')
+        print()
+
+    row('Net Profit',      'net_pct',     '{:+.2f}%')
+    row('Profit Factor',   'pf',          '{:.3f}')
+    row('Win Rate',        'wr',          '{:.1f}%')
+    row('Max Drawdown',    'max_dd_pct',  '{:.2f}%')
+    row('Sharpe (ann.)',   'sharpe',      '{:.3f}')
+    row('Total Trades',    'trades',      '{:.0f}')
+    row('Avg effCash',     'avg_cash',    '${:.0f}')
+    row('Avg Win',         'avg_win',     '${:+.2f}')
+    row('Avg Loss',        'avg_loss',    '${:.2f}')
+    row('Best Trade',      'best',        '${:+.2f}')
+    row('Worst Trade',     'worst',       '${:.2f}')
+    row('Total Fees',      'fees',        '${:.2f}')
+
+    print(bar)
+    print(f'\n  trader.dev reference: +257.91%  PF 1.570  DD 13.76%  Sharpe 0.999')
+
 
 
 if __name__ == '__main__':
