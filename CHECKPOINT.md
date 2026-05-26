@@ -1,292 +1,162 @@
-# Session Checkpoint — 2026-05-25 (updated)
+# Session Checkpoint — 2026-05-26
+
+## Current Status: BOT IS LIVE ON EC2 ✅
+
+### EC2 Instance
+- **IP**: 47.129.55.50
+- **User**: ec2-user
+- **OS**: Amazon Linux 2023
+- **Region**: ap-southeast-1
+- **Instance**: t2.micro (i-0dc2c3783538aca9d)
+- **Bot path**: `/home/ec2-user/f40d-bot`
+- **PM2 process**: `f40d-bot` (running, auto-restart enabled)
+
+### Bot State
+- Bybit Demo (testnet) connected — 5× leverage on ETHUSDT
+- 5000 1H candles loaded — signal engine armed
+- Telegram connected — chat ID 6109181833
+- streakMult = 1.0 (fresh start, no trades yet)
+- Next signal check: fires 65s past every hour close
+
+### Verified working
+```
+Leverage set: 5x on ETHUSDT
+Bybit TESTNET ready | 5x leverage on ETHUSDT
+Position monitor started (60s interval)
+Signal engine: 5000 candles ready — engine armed
+Signal engine: next check in XX min
+```
+Telegram startup message received ✅
+
+---
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `10269b5`
+Last commit: `2b0c2f1` — Add EC2 deploy script
 
 ---
 
-## Backtest Results (Python/Binance vs trader.dev)
+## Backtest Results (Python/Binance)
 
-### Run history today:
-| Run | Change | Net% | PF | DD% | Trades |
-|-----|--------|------|----|-----|--------|
-| 1 | Raw port | +150.73% | 1.298 | 42.08% | 382 |
-| 2 | + 30% equity cap (too tight) | +17.46% | 1.120 | 17.72% | 343 |
-| 3 | + per-bar unrealized DD check | +184.51% | 1.338 | 48.55% | 343 |
-| **Target** | **trader.dev** | **+257.91%** | **1.570** | **13.76%** | **322** |
+### 4-scenario comparison:
+| Scenario | Net% | PF | DD% | Trades |
+|----------|------|----|-----|--------|
+| Flat $3k (streak=1) | +93% | 1.28 | 32% | 382 |
+| Streak disabled (env flag) | +93% | 1.28 | 32% | 382 |
+| Anti-martingale cap 2× | +148% | 1.31 | 47% | 343 |
+| Anti-martingale cap 3× ← **LIVE** | +184% | 1.34 | 48% | 343 |
 
-### Root cause analysis:
-1. **Run 1 → 382 trades (vs 322)**: shorts fired before htfEMA(4800) warmed up
-   (bars 0-4799 = Dec 2021-Jul 2022 bear market). Fixed: require `not isnan(htf_v)`.
-
-2. **DD gap (48% vs 14%)**: anti-martingale creates fat-tail risk.
-   - Max effCash = $3k × volMult(1.5) × sigMult(3.0) × streakMult(3.0) = **$40,500**
-   - One SL hit at max size = $810 = **8% of $10k account**
-   - trader.dev's 14% DD was a favorable data-sequence — wins clustered before big positions
-
-3. **Per-bar unrealized DD check** (Run 3): inflates peak_eq via unrealized gains on
-   winning trades, making 5% reset threshold harder to hit from next trade's losses.
-   Returns recovered (+184%) but DD got worse (48%) because of elevated phantom peaks.
-
-4. **Data source difference**: Binance OHLCV ≠ trader.dev's feed. Signal timing differs
-   slightly → different win/loss sequencing → different anti-martingale compounding.
-
-### Key numbers (Run 3 — current best):
-- Avg effCash: $12,079 (4× base — anti-martingale is very active)
-- Avg streakIn: 1.638
-- Best trade: +$1,993 / Worst: -$843
+### Key facts
+- Win rate: 32.1% (breakeven is 28.6% — real edge confirmed)
+- PF 1.28–1.34 consistent across ALL scenarios
+- DD gap vs trader.dev (14%) = data-sequence difference (Binance ≠ trader.dev feed)
+- Avg effCash at cap 3×: $12,079 (anti-martingale very active when on a streak)
 
 ---
 
-## NEXT SESSION: What to do
+## What's deployed (full anti-martingale, cap 3×)
 
-### 1. Test reduced anti-martingale cap (5 min, on Mac)
-Change line 44 in `runner/backtest_native.py`:
-```python
-am_mult_cap = 2.0,   # was 3.0 — limits max position to $3k×1.5×3×2=$27k
+### Strategy: ETHUSDT 1H Hilbert Envelope
+**Entry conditions (ALL required):**
+1. Price > EMA(4800) on 1H — bull regime (longs only; shorts allowed in any regime)
+2. ADX(14) > 20 — not sideways
+3. Envelope expansion Z-score crosses above 1.0 — volatility expanding
+4. Price velocity Z-score > 0.5 in signal direction
+
+**Exits:**
+- TP: +5% (limit order, maker fee)
+- SL: −2% (market order)
+- Regime flips bear → long closed
+- ADX drops below 20 → all closed
+- Opposite signal → flip
+
+**Sizing:**
 ```
-Run: `python3 runner/backtest_native.py`
-Expected: DD drops to ~20-25%, returns stay ~130-150%
-
-### 2. Add STREAK_ENABLED flag to live bot
-For safe live deployment: start with flat $3k sizing, enable anti-martingale
-after 20 real trades. I need to add `STREAK_ENABLED=false` env flag to bot.
-
-### 3. Deploy EC2 bot (once sizing decision is made)
-```bash
-# On EC2:
-git clone https://github.com/MandarBandekar123/Claude-Mandar.git
-cd Claude-Mandar/bot
-cp .env.example .env
-nano .env     # fill credentials
-bash deploy.sh
-```
-
-**.env credentials needed:**
-```
-TELEGRAM_TOKEN=     # @BotFather → /newbot
-TELEGRAM_CHAT_ID=   # @userinfobot
-BYBIT_API_KEY=      # demo-bybit.com → API Management
-BYBIT_API_SECRET=
-BYBIT_TESTNET=true
-PORT=3000
+effCash = min($3000 × volMult × signalMult × streakMult, 30% of equity)
+volMult:    1.0–1.5× (ATR vs 200-bar average)
+signalMult: 1.0–3.0× (price velocity Z-score)
+streakMult: 1.0–3.0× (win→×2, loss→×0.9, DD>5%→reset to 1.0)
 ```
 
 ---
 
-## Sizing Decision for Live Trading
-
-| Mode | Est. Return | Est. Max DD | When to use |
-|------|-------------|-------------|-------------|
-| Flat $3k (streak=1 always) | ~+17% / 4.5yr | ~5-8% | First 20 trades on demo |
-| Anti-martingale cap 2× | ~+130-150% | ~20-25% | After validating signals live |
-| Anti-martingale cap 3× | +184% | 48% | Too risky for live |
-
-**Recommendation**: deploy with `STREAK_ENABLED=false` first (flat $3k).
-Signals are validated. Sizing can be tuned after watching real executions.
-
----
-
-## Full Architecture (unchanged)
+## Architecture
 
 ```
-EC2 (single box, runs 24/7)
-  └── server.js (PM2)
+EC2 47.129.55.50 (runs 24/7)
+  └── /home/ec2-user/f40d-bot/bot/server.js  (PM2: f40d-bot)
         ├── signal-engine.js  — fetches Bybit 1H candles every hour close
         │     runs: ADX → htfEMA → envelope → priceVelZ → sizing
         │     fires: processSignal({side, price, effCash, ...})
-        ├── processSignal()   — closes opposite pos → Bybit order → Telegram → SQLite
+        ├── processSignal()   — closes opposite → Bybit order → Telegram → SQLite
         ├── monitor.js        — 60s poll: TP/SL hit → updateStreak() → Telegram
-        └── /webhook endpoint — manual override still works
+        ├── /webhook          — manual override still works
+        └── cron 0 8 * * *   — daily Telegram dashboard at 8am UTC
 ```
+
+---
 
 ## Key Files
 ```
 bot/signal-engine.js   — Full Pine strategy in JS (all indicators)
-bot/server.js          — Express + processSignal() + startSignalEngine()
+bot/server.js          — Express + processSignal() + startSignalEngine() + daily cron
 bot/monitor.js         — Position monitor, calls updateStreak()
-bot/tracker.js         — SQLite trade log
+bot/tracker.js         — SQLite trade log (trades.db, gitignored)
 bot/bybit.js           — Bybit V5 REST
-bot/telegram.js        — Telegram message templates
+bot/telegram.js        — Rich Telegram templates (signal, close, daily dashboard, weekly)
 bot/config.js          — Settings from .env
-bot/deploy.sh          — EC2 one-command setup
-runner/backtest_native.py  — Python backtest on Binance data
-strategy_v2_fixed3k.pine   — Live strategy on trader.dev (ID: 01KSDS5BCKYSXRET62Z32X17TN)
-```
-
-## trader.dev facts
-- API key: GitHub secret `TRADER_DEV_API_KEY` only — never committed
-- Deployed strategy ID: `01KSDS5BCKYSXRET62Z32X17TN`
-- MCP IP-whitelisted to Mac only (cloud gets 403)
-- Used for backtesting only — live signals come from signal-engine.js on EC2
-
-
-## Branch
-`claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-
----
-
-## What Was Built
-
-### Full AI Hedge Fund System — ETHUSDT 1H, $3k fixed base, 5x leverage
-
-**Backtest result (trader.dev, 4-year):**
-- Net Profit: **+257.91%** ($25,791 on $10k)
-- Profit Factor: **1.57**
-- Max Drawdown: **13.76%**
-- Sharpe: **0.999**
-- Win Rate: **~40%** (322 trades)
-
-**Strategy:** `strategy_v2_fixed3k.pine` (live on trader.dev as `01KSDS5BCKYSXRET62Z32X17TN`)
-- EMA(4800) on 1H as 200-day regime proxy
-- ADX(14) sideways filter (threshold 20)
-- Hilbert envelope oscillator → expansion edge signal
-- Price velocity Z-score for direction + magnitude
-- Anti-martingale sizing: `baseCash($3k) × volMult(1–1.5x) × signalMult(1–3x) × streakMult(1–3x)`
-- TP 5% / SL 2% / 5x leverage on Bybit
-
----
-
-## File Structure
-
-```
-bot/
-  server.js          — Express webhook + processSignal() + startSignalEngine()
-  signal-engine.js   — FULL Pine strategy in JS: fetches Bybit 1H OHLCV,
-                       runs all indicators, fires signals every hour close
-  monitor.js         — 60s poll: detects TP/SL hit, calls updateStreak()
-  tracker.js         — SQLite trade log (trades.db)
-  bybit.js           — Bybit V5 REST: placeOrder, closePosition, getPrice, getLastFill
-  telegram.js        — Rich message templates (signal alert, close, weekly report)
-  config.js          — All settings from .env
-  deploy.sh          — EC2 one-command setup (Node 22 + PM2)
-  .env.example       — Template: TELEGRAM_TOKEN, BYBIT_API_KEY, BYBIT_TESTNET=true
-
-runner/
-  backtest_native.py — Python backtest: fetches Binance 1H OHLCV or reads TV CSV,
-                       ports ALL Pine indicators, outputs vs trader.dev comparison
-  poll-signals.js    — Mac-side bridge (DEPRECATED — signal-engine.js replaced this)
-  deploy-live.js     — Deploys/validates strategy on trader.dev MCP
-
-strategy_v2_fixed3k.pine  — The live strategy (deployed on trader.dev)
+bot/deploy.sh          — EC2 one-command setup (Node + PM2)
+bot/.env.example       — Credential template
+runner/backtest_native.py  — Python backtest (run on Mac — Binance blocked from cloud)
+strategy_v2_fixed3k.pine   — Original Pine strategy (trader.dev reference only)
 ```
 
 ---
 
-## Architecture (final)
+## Plan: 30–40 Demo Trades → Go Live
+Monitor via:
+- `pm2 logs f40d-bot` on EC2
+- Telegram alerts on every signal/close
+- Daily 8am UTC dashboard
 
-```
-EC2 (single box, runs 24/7)
-  └── server.js (PM2)
-        ├── signal-engine.js  — fetches Bybit 1H candles every hour close
-        │     runs: ADX → htfEMA → envelope → priceVelZ → sizing
-        │     fires: processSignal({side, price, effCash, ...})
-        ├── processSignal()   — closes opposite pos → Bybit order → Telegram → SQLite
-        ├── monitor.js        — 60s poll: TP/SL hit → updateStreak() → Telegram
-        └── /webhook endpoint — manual override / external signals still work
-```
-
-No Mac dependency. No trader.dev dependency for live trading.
-trader.dev is kept for backtesting new strategies only.
+After 30–40 trades: review win rate, DD, execution quality, then set `BYBIT_TESTNET=false`.
 
 ---
 
-## Pending Tasks (do these tomorrow)
+## Technical Reference
 
-### 1. Run the Python backtest (PRIORITY — validates signal-engine.js)
-```bash
-# On your Mac:
-cd Claude-Mandar
-pip install requests pandas numpy pyarrow
-python runner/backtest_native.py
-# Target: +257.91%, PF 1.57, DD 13.76%, Sharpe 0.999
-```
-OR: Download TradingView CSV → `python runner/backtest_native.py ETHUSDT_60.csv`
-(TV: ETHUSDT 1H chart → right-click → Download history data, 4+ years)
-
-### 2. Deploy the EC2 bot
-```bash
-# On your EC2:
-git clone https://github.com/MandarBandekar123/Claude-Mandar.git
-cd Claude-Mandar/bot
-cp .env.example .env
-nano .env     # fill in credentials below
-bash deploy.sh
-```
-
-**.env credentials needed:**
-```
-TELEGRAM_TOKEN=<from @BotFather — /newbot>
-TELEGRAM_CHAT_ID=<from @userinfobot>
-BYBIT_API_KEY=<from demo-bybit.com → API Management>
-BYBIT_API_SECRET=<same>
-BYBIT_TESTNET=true    # change to false for live
-PORT=3000
-```
-
-### 3. Verify bot is live
-```bash
-# On EC2:
-pm2 logs f40d-bot          # watch startup + first candle fetch
-curl localhost:3000/health  # should return {"status":"ok","openTrades":0}
-```
-First signal check fires at :65 past next full hour (65s buffer for bar to settle).
-
----
-
-## Key Technical Facts (don't lose these)
-
-### trader.dev MCP
-- SSE endpoint: `https://mcp.trader.dev/sse`
-- IP-whitelisted to Mac only (cloud gets 403)
-- Correct tool params: `from`/`to` (not fromDate/toDate), `pineSource` (not pine_script)
-- `quick_backtest` returns `netProfitPct` already in % form — never multiply by 100
-- Deployed strategy ID: `01KSDS5BCKYSXRET62Z32X17TN`
-- API key stored as GitHub secret `TRADER_DEV_API_KEY` only — never committed
-
-### Pine → JS indicator mapping (signal-engine.js)
-| Pine | JS |
-|------|----|
-| `ta.rma(x, n)` | `rmaFull(arr, n)` — seed SMA, then α=1/n |
-| `ta.ema(x, n)` | `emaFull(arr, n)` — seed SMA, then α=2/(n+1) |
+### Pine → JS indicator mapping
+| Pine | JS impl |
+|------|---------|
+| `ta.rma(x, n)` | `rmaFull(arr, n)` — seed SMA, α=1/n (Wilder's) |
+| `ta.ema(x, n)` | `emaFull(arr, n)` — seed SMA, α=2/(n+1) |
 | `ta.sma(x, n)` | `smaFull(arr, n)` — sliding window |
 | `ta.stdev(x, n)` | `stdevFull(arr, n)` — population (ddof=0) |
 | `ta.crossover(a, b)` | `prev <= b && curr > b` |
-| `ta.atr(14)` | `rmaFull(tr, 14)` |
 
-### Bybit V5 API
-- Category: `linear` for USDT perps
-- Market kline: `GET /v5/market/kline` — public, no auth (but blocked from cloud)
-- Place order: `POST /v5/order/create` — requires auth
-- Taker fee: 0.06% / Maker fee: 0.01%
-- Leverage: set to 5x via `POST /v5/position/set-leverage`
+### Bybit API
+- Public klines: `GET https://api.bybit.com/v5/market/kline` (no auth)
+- Category: `linear` (USDT perps)
+- Fees: taker 0.06%, maker 0.01%
 
 ### Anti-martingale state
-- Persisted to `bot/signal-state.json` (gitignored)
-- `monitor.js` calls `updateStreak(netPnl)` on every trade close
+- File: `bot/signal-state.json` (gitignored, stays on EC2)
 - Win → `streakMult = min(3.0, streakMult × 2.0)`
 - Loss → `streakMult = max(1.0, streakMult × 0.9)`
 - DD > 5% from peak → `streakMult = 1.0`
 
-### ETH edge is ETH-specific
-- BTC/SOL tested: PF ~1.1, Sharpe ~0.31 (no edge)
-- ETHUSDT 1H: PF 1.57, Sharpe 0.999 (strong edge)
-- Don't deploy this strategy on other pairs without re-testing
-
----
-
-## What Was Discussed / Decided
-
-1. **trader.dev for BT only** — signal delivery via its own platform is broken (no webhook UI, IP-whitelisted MCP). Replaced with native signal engine on EC2.
-2. **Python > JS for quant** — acknowledged, but bot is already in JS. If adding more strategies, migrate to Python at that point.
-3. **$3k fixed base chosen** over equity-scaled — cleaner risk per trade, easier to reason about, PF 1.57 vs 1.49 for equity-scaled.
-4. **backtest_native.py** — full Pine port in Python. Run to validate JS signal engine produces same signals. If numbers match ±5%, signal engine is correct.
-5. **Bybit Demo first** — `BYBIT_TESTNET=true` in .env until you've watched a few trades execute correctly, then flip to live.
+### EC2 commands
+```bash
+pm2 logs f40d-bot          # live log stream
+pm2 status                 # process status
+curl localhost:3000/health  # open trades JSON
+pm2 restart f40d-bot       # restart after code pull
+git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
+```
 
 ---
 
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `d444d84` — 2026-05-24
+Last commit: `2b0c2f1`
