@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express       from 'express';
 import cron          from 'node-cron';
+import { exec }      from 'child_process';
 import { config }    from './config.js';
 import { Bybit }     from './bybit.js';
 import { Tracker }   from './tracker.js';
@@ -136,6 +137,22 @@ app.post('/webhook', async (req, res) => {
 app.get('/health', (req, res) => {
   const open = Tracker.getOpen();
   res.json({ status: 'ok', openTrades: open.length, open });
+});
+
+// ── Deploy endpoint — git pull then restart via PM2 ───────────────────────────
+app.post('/deploy', (req, res) => {
+  const secret = req.query.secret || req.headers['x-deploy-secret'];
+  if (!config.deploySecret || secret !== config.deploySecret) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  res.json({ ok: true, message: 'deploying...' });
+  exec(
+    'cd /home/ec2-user/f40d-bot && git pull origin claude/add-trader-dev-mcp-dJbZq',
+    (err, stdout, stderr) => {
+      console.log('Deploy pull:', stdout || stderr);
+      setTimeout(() => process.exit(0), 300); // PM2 auto-restarts with new code
+    }
+  );
 });
 
 // ── Daily dashboard: every day at 08:00 UTC ──────────────────────────────────

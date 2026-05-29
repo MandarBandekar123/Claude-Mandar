@@ -25,4 +25,5 @@ export const config = {
   // Server
   port:           process.env.PORT || 3000,
   webhookSecret:  process.env.WEBHOOK_SECRET || '',
+  deploySecret:   process.env.DEPLOY_SECRET || '',
 };
