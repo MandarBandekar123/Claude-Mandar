@@ -39,6 +39,7 @@ export const Bybit = {
       orderType:         'Market',
       qty:               String(qty),
       takeProfit:        String(tpPrice.toFixed(2)),
+      tpLimitPrice:      String(tpPrice.toFixed(2)),  // required when tpOrderType=Limit
       stopLoss:          String(slPrice.toFixed(2)),
       tpTriggerBy:       'LastPrice',
       slTriggerBy:       'LastPrice',
