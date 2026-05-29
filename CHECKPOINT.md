@@ -49,16 +49,29 @@ Telegram startup message received ✅
 - IP binding: not bound (key expires in 3 months). If you want permanent, bind to `47.129.55.50` on Bybit.
 - Key/secret live in `/home/ec2-user/f40d-bot/bot/.env` on EC2 only.
 
-### Pending verification (tomorrow)
-- Wait for next signal tick (hour close + 65s) to confirm an actual order submits without `API key is invalid`.
-- Optional sanity test: `curl -X POST localhost:3000/webhook -H 'Content-Type: application/json' -d '{"side":"buy","price":3500}'` from EC2 to force an order through.
-- Then monitor 30–40 demo trades → review → flip `BYBIT_DEMO=false` to go live.
+### Order placement: VERIFIED WORKING ✅
+Test webhook confirmed full order cycle:
+```
+Trade opened: Buy 1.47 ETHUSDT @ $2038.4 | TP $2140.32 | SL $1997.63 | notional $3000
+```
+Error log empty. Telegram alert received.
+
+**Fixes applied to get here (in order):**
+1. `eee7035` — Wrong endpoint: `testnet:true` → `demoTrading:true`
+2. `02d270f` — Qty invalid: `toFixed(3)` → `toFixed(2)` (Bybit step size = 0.01)
+3. `eee7035` — Added `tpLimitPrice` (required when `tpOrderType=Limit`)
+4. `d4fbdd2` — Removed `tpOrderType=Limit` + `tpLimitPrice` + `tpSlMode` entirely — Bybit library doesn't support these cleanly; defaulting to Market TP (cost: ~$1.50/trade negligible)
+
+### Next steps
+- Monitor 30–40 demo trades via Telegram + `pm2 logs f40d-bot`
+- Review: win rate, DD, execution quality
+- Go live: set `BYBIT_DEMO=false` in `/home/ec2-user/f40d-bot/bot/.env` + `pm2 restart f40d-bot`
 
 ---
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `de09e95` — Fix: route Bybit client to demo trading endpoint
+Last commit: `d4fbdd2` — Fix: remove tpOrderType=Limit (order placement verified working)
 
 ---
 
@@ -185,4 +198,4 @@ git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `de09e95` — Fix: route Bybit client to demo trading endpoint
+Last commit: `d4fbdd2` — Fix: remove tpOrderType=Limit (order placement verified working)
