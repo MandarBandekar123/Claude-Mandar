@@ -1,0 +1,25 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - claude/add-trader-dev-mcp-dJbZq
+    paths:
+      - 'bot/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 47.129.55.50
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/f40d-bot
+            git pull origin claude/add-trader-dev-mcp-dJbZq
+            pm2 restart f40d-bot
+            sleep 5
+            pm2 logs f40d-bot --lines 5 --nostream
