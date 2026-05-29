@@ -3,6 +3,7 @@ import express       from 'express';
 import cron          from 'node-cron';
 import { exec }      from 'child_process';
 import { config }    from './config.js';
+// deploy test
 import { Bybit }     from './bybit.js';
 import { Tracker }   from './tracker.js';
 import { Telegram }  from './telegram.js';
