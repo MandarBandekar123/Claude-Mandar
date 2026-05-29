@@ -62,7 +62,14 @@ Error log empty. Telegram alert received.
 3. `eee7035` — Added `tpLimitPrice` (required when `tpOrderType=Limit`)
 4. `d4fbdd2` — Removed `tpOrderType=Limit` + `tpLimitPrice` + `tpSlMode` entirely — Bybit library doesn't support these cleanly; defaulting to Market TP (cost: ~$1.50/trade negligible)
 
+### EC2 SSH access from this cloud environment
+- SSH times out — EC2 security group only allows SSH from user's home IP
+- PEM key saved at `/tmp/ec2key.pem` (chmod 600) in this session only — will not persist across sessions
+- **To give Claude direct EC2 access:** AWS Console → EC2 → Security Groups → group for `i-0dc2c3783538aca9d` → Inbound rules → Add: SSH / TCP / 22 / 0.0.0.0/0 → Save
+- Until then: user pastes one-liner commands from their EC2 terminal
+
 ### Next steps
+- (Optional) Open SSH in EC2 security group so Claude can take over directly
 - Monitor 30–40 demo trades via Telegram + `pm2 logs f40d-bot`
 - Review: win rate, DD, execution quality
 - Go live: set `BYBIT_DEMO=false` in `/home/ec2-user/f40d-bot/bot/.env` + `pm2 restart f40d-bot`
