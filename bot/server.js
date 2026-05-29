@@ -75,7 +75,7 @@ async function processSignal(signal) {
 
   // ── Sizing — effCash from signal engine (volMult×signalMult×streakMult) ───
   const notional    = signal.effCash ?? config.baseCash;
-  const qty         = parseFloat((notional / entryPrice).toFixed(3));
+  const qty         = parseFloat((notional / entryPrice).toFixed(2));
   const margin      = notional / config.leverage;
   const tpPrice     = side === 'Buy'
     ? entryPrice * (1 + config.tpPct / 100)
