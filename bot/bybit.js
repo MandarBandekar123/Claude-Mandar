@@ -39,12 +39,13 @@ export const Bybit = {
       orderType:         'Market',
       qty:               String(qty),
       takeProfit:        String(tpPrice.toFixed(2)),
-      tpLimitPrice:      String(tpPrice.toFixed(2)),  // required when tpOrderType=Limit
+      tpLimitPrice:      String(tpPrice.toFixed(2)),
       stopLoss:          String(slPrice.toFixed(2)),
       tpTriggerBy:       'LastPrice',
       slTriggerBy:       'LastPrice',
-      tpOrderType:       'Limit',     // TP as limit = maker fee
-      slOrderType:       'Market',    // SL as market = taker fee
+      tpOrderType:       'Limit',
+      slOrderType:       'Market',
+      tpSlMode:          'Full',
       timeInForce:       'IOC',
       reduceOnly:        false,
       positionIdx:       0,           // one-way mode
