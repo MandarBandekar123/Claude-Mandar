@@ -1,6 +1,6 @@
-# Session Checkpoint — 2026-05-26 (updated PM)
+# Session Checkpoint — 2026-05-29 (updated)
 
-## Current Status: BOT IS LIVE ON EC2, DEMO ENDPOINT ✅
+## Current Status: BOT IS LIVE, ORDERS CONFIRMED WORKING ✅
 
 ### EC2 Instance
 - **IP**: 47.129.55.50
@@ -62,23 +62,28 @@ Error log empty. Telegram alert received.
 3. `eee7035` — Added `tpLimitPrice` (required when `tpOrderType=Limit`)
 4. `d4fbdd2` — Removed `tpOrderType=Limit` + `tpLimitPrice` + `tpSlMode` entirely — Bybit library doesn't support these cleanly; defaulting to Market TP (cost: ~$1.50/trade negligible)
 
-### EC2 SSH access from this cloud environment
-- SSH times out — EC2 security group only allows SSH from user's home IP
-- PEM key saved at `/tmp/ec2key.pem` (chmod 600) in this session only — will not persist across sessions
-- **To give Claude direct EC2 access:** AWS Console → EC2 → Security Groups → group for `i-0dc2c3783538aca9d` → Inbound rules → Add: SSH / TCP / 22 / 0.0.0.0/0 → Save
-- Until then: user pastes one-liner commands from their EC2 terminal
+### GitHub Actions deploy (optional, not critical)
+- Workflow at `.github/workflows/deploy.yml` — triggers on push to `bot/**`
+- Requires `EC2_SSH_KEY` secret in GitHub repo settings (already added)
+- Had issues with `appleboy/ssh-action` key parsing — switched to plain SSH approach
+- Not fully verified yet — not needed while bot is stable
 
 ### Next steps
-- (Optional) Open SSH in EC2 security group so Claude can take over directly
-- Monitor 30–40 demo trades via Telegram + `pm2 logs f40d-bot`
+- Just watch Telegram for trade alerts
+- Monitor 30–40 demo trades
 - Review: win rate, DD, execution quality
 - Go live: set `BYBIT_DEMO=false` in `/home/ec2-user/f40d-bot/bot/.env` + `pm2 restart f40d-bot`
+
+### If code changes needed on EC2 (manual deploy)
+```bash
+cd /home/ec2-user/f40d-bot && git pull origin claude/add-trader-dev-mcp-dJbZq && pm2 restart f40d-bot
+```
 
 ---
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `d4fbdd2` — Fix: remove tpOrderType=Limit (order placement verified working)
+Last commit: `358d1ff` — Fix deploy workflow (GitHub Actions, not critical)
 
 ---
 
@@ -205,4 +210,4 @@ git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `d4fbdd2` — Fix: remove tpOrderType=Limit (order placement verified working)
+Last commit: `358d1ff` — Fix deploy workflow (GitHub Actions, not critical)
