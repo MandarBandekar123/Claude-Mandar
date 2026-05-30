@@ -80,7 +80,10 @@ Error log empty. Telegram alert received.
 - Had issues with `appleboy/ssh-action` key parsing — switched to plain SSH approach
 - Not fully verified yet — not needed while bot is stable
 
-### Next steps
+### Missed trade — include in final strategy assessment
+- **SELL @ $2,067.76** on May 26 18:00 UTC — fired during API debugging, order never placed
+- At 25× sizing ($15k notional): unrealised +$418 as of May 30, TP $1,964.37 (+$750 if hit), SL $2,109.12 (−$300 if hit)
+- **Adjust final win/loss count and PnL by +1 trade when reviewing**
 - Just watch Telegram for trade alerts
 - Monitor 30–40 demo trades
 - Review: win rate, DD, execution quality
