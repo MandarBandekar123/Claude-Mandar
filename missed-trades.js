@@ -11,8 +11,8 @@ const P = {
   expansionZ: 1.0, minVelZ: 0.5,
   detrendLen: 50, envSmoothLen: 10, envSlopeLen: 10, envBaseLen: 150,
   priceVelLen: 5, volSMALen: 200, htfEMALen: 4800, warmup: 250,
-  baseCash: 3000, amMultCap: 3.0, maxRiskPct: 30.0,
-  leverage: 5, tpFee: 0.0006, slFee: 0.0006,
+  baseCash: 15000, amMultCap: 3.0, maxRiskPct: 200.0,
+  leverage: 25, tpFee: 0.0006, slFee: 0.0006,
 };
 
 // ── Indicators ───────────────────────────────────────────────────────────────
