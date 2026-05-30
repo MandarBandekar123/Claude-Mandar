@@ -12,15 +12,15 @@ export const config = {
 
   // Strategy
   symbol:         'ETHUSDT',
-  baseCash:       3000,        // fixed $3k base position value
-  leverage:       5,           // set on Bybit account
-  slPct:          2.0,         // matches Pine strategy
-  tpPct:          5.0,         // matches Pine strategy
-  bybitCategory:  'linear',    // USDT perpetuals
+  baseCash:       15000,       // base notional ($600 margin at 25x)
+  leverage:       25,          // 25x leverage
+  slPct:          2.0,
+  tpPct:          5.0,
+  bybitCategory:  'linear',
 
   // Bybit fees (demo mirrors live)
-  takerFee:       0.0006,      // 0.06% market orders
-  makerFee:       0.0001,      // 0.01% limit orders (TP)
+  takerFee:       0.0006,
+  makerFee:       0.0001,
 
   // Server
   port:           process.env.PORT || 3000,

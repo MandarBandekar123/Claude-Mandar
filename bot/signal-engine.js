@@ -25,7 +25,7 @@ const P = {
   ddResetPct:  5.0,   // streak reset drawdown %
   baseCash:    3000.0,
   amMultCap:   3.0,
-  maxRiskPct:  30.0,   // effCash never exceeds 30% of current equity   // max streak multiplier
+  maxRiskPct:  200.0,  // effCash never exceeds 200% of equity (margin = 8% at 25x)
   htfEMALen:   4800,  // 200-day EMA proxy on 1H bars
   envSmoothLen: 10,
   envSlopeLen:  10,
