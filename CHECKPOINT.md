@@ -12,10 +12,10 @@
 - **PM2 process**: `f40d-bot` (running, auto-restart enabled)
 
 ### Bot State
-- Bybit **Demo Trading** (api-demo.bybit.com) connected — 5× leverage on ETHUSDT
+- Bybit **Demo Trading** (api-demo.bybit.com) connected — **25× leverage on ETHUSDT**
 - 5000 1H candles loaded — signal engine armed
 - Telegram connected — chat ID 6109181833
-- streakMult = 1.0 (fresh start, no trades yet)
+- streakMult = 1.0 (fresh start)
 - Next signal check: fires 65s past every hour close
 
 ### Verified working (latest restart)
@@ -48,6 +48,18 @@ Telegram startup message received ✅
 - Permissions: Contracts — Orders + Positions ✅
 - IP binding: not bound (key expires in 3 months). If you want permanent, bind to `47.129.55.50` on Bybit.
 - Key/secret live in `/home/ec2-user/f40d-bot/bot/.env` on EC2 only.
+
+### Sizing (current)
+| | |
+|---|---|
+| Leverage | 25× |
+| Base notional | $15,000 |
+| Margin per base trade | $600 |
+| SL (−2%) | −$300 |
+| TP (+5%) | +$750 |
+| At 3× streak | $45k notional / −$900 SL / +$2,250 TP |
+| maxRiskPct | 200% of equity |
+| Liquidation zone | ~4% adverse (SL at 2% should fire first) |
 
 ### Order placement: VERIFIED WORKING ✅
 Test webhook confirmed full order cycle:
@@ -83,7 +95,7 @@ cd /home/ec2-user/f40d-bot && git pull origin claude/add-trader-dev-mcp-dJbZq &&
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `358d1ff` — Fix deploy workflow (GitHub Actions, not critical)
+Last commit: `29b62b1` — 25x leverage, baseCash $15k, maxRiskPct 200
 
 ---
 
@@ -210,4 +222,4 @@ git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `358d1ff` — Fix deploy workflow (GitHub Actions, not critical)
+Last commit: `29b62b1` — 25x leverage, baseCash $15k, maxRiskPct 200
