@@ -1,6 +1,6 @@
-# Session Checkpoint — 2026-05-29 (updated)
+# Session Checkpoint — 2026-05-31 (latest)
 
-## Current Status: BOT IS LIVE, ORDERS CONFIRMED WORKING ✅
+## Current Status: EC2 UNREACHABLE — NEEDS CHECK ⚠️
 
 ### EC2 Instance
 - **IP**: 47.129.55.50
@@ -88,6 +88,12 @@ Error log empty. Telegram alert received.
 - Monitor 30–40 demo trades
 - Review: win rate, DD, execution quality
 - Go live: set `BYBIT_DEMO=false` in `/home/ec2-user/f40d-bot/bot/.env` + `pm2 restart f40d-bot`
+
+### EC2 Status (May 31) ⚠️
+- SSH returning `Connection reset by peer` — instance may be stopped
+- Check: AWS Console → EC2 → Instances → `i-0dc2c3783538aca9d` → Instance State
+- If stopped: click **Start Instance** — PM2 will auto-start `f40d-bot`
+- If running but SSH fails: reboot the instance from console
 
 ### If code changes needed on EC2 (manual deploy)
 ```bash
