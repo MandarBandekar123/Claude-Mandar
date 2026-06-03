@@ -1,4 +1,4 @@
-# Session Checkpoint — 2026-05-31 (latest)
+# Session Checkpoint — 2026-05-31 (EOD)
 
 ## Current Status: BOT LIVE ON NEW EC2 ✅
 
@@ -101,11 +101,22 @@ Error log empty. Telegram alert received.
 - Review: win rate, DD, execution quality
 - Go live: set `BYBIT_DEMO=false` in `/home/ec2-user/f40d-bot/bot/.env` + `pm2 restart f40d-bot`
 
-### EC2 Status (May 31) ⚠️
-- SSH returning `Connection reset by peer` — instance may be stopped
-- Check: AWS Console → EC2 → Instances → `i-0dc2c3783538aca9d` → Instance State
-- If stopped: click **Start Instance** — PM2 will auto-start `f40d-bot`
-- If running but SSH fails: reboot the instance from console
+### EC2 Status (May 31) ✅
+- Old instance (47.129.55.50, t2.micro): abandoned — too many PM2 processes, ran out of RAM
+- **New instance (47.128.145.98, t3.small)**: bot running, Telegram confirmed working
+- New instance has 2GB RAM + unlimited CPU burst — no more resource crashes
+
+### Overfitting analysis (pending live run on trader.dev)
+Manual analysis done using SKILL.md framework — verdict: **WATCHLIST → INCUBATE**
+- PF 1.28–1.34 consistent across 4 sizing scenarios ✅
+- No repainting, no lookahead ✅
+- NOT tested on multiple pairs or timeframes ❌ — biggest gap
+- 8 tunable parameters vs 382 trades — overfitting risk exists
+- Commission underestimated in Pine (0.04% vs real 0.06%)
+- **To complete**: run multi-pair backtest (ETHUSDT, BTCUSDT, SOLUSDT, 1H + 4H) via trader.dev
+- trader.dev API key: `pk_ggOO86cgFaM6PmnTo0WHB-TQ2vFtWOqC`
+- trader-dev MCP disconnects in this cloud session — start fresh Claude session to run it
+- Pine script to test: `strategy_v2_fixed3k.pine` in repo root
 
 ### If code changes needed on EC2 (manual deploy)
 ```bash
