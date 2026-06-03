@@ -1,6 +1,18 @@
 # Session Checkpoint — 2026-05-31 (latest)
 
-## Current Status: EC2 UNREACHABLE — NEEDS CHECK ⚠️
+## Current Status: BOT LIVE ON NEW EC2 ✅
+
+### EC2 Instance (NEW)
+- **IP**: 47.128.145.98
+- **User**: ec2-user
+- **Type**: t3.small (2GB RAM, unlimited CPU burst)
+- **Region**: ap-southeast-1
+- **Bot path**: `/home/ec2-user/f40d-bot`
+- **PM2 process**: `f40d-bot` (running, auto-restart enabled)
+
+### Old instance (47.129.55.50) — ABANDONED
+- t2.micro ran out of resources (6 PM2 processes, ~950MB/1GB RAM)
+- SSH unresponsive, EC2 Connect not working — left as-is
 
 ### EC2 Instance
 - **IP**: 47.129.55.50
@@ -104,7 +116,7 @@ cd /home/ec2-user/f40d-bot && git pull origin claude/add-trader-dev-mcp-dJbZq &&
 
 ## Branch
 `claude/add-trader-dev-mcp-dJbZq` — all code pushed, clean tree.
-Last commit: `29b62b1` — 25x leverage, baseCash $15k, maxRiskPct 200
+Last commit: `ef263ef` — current codebase on new EC2
 
 ---
 
@@ -231,4 +243,4 @@ git -C ~/f40d-bot pull && pm2 restart f40d-bot  # deploy update
 ## GitHub
 Repo: `MandarBandekar123/Claude-Mandar`
 Branch: `claude/add-trader-dev-mcp-dJbZq`
-Last commit: `29b62b1` — 25x leverage, baseCash $15k, maxRiskPct 200
+Last commit: `ef263ef` — current codebase on new EC2
