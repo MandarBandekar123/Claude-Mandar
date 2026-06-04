@@ -67,12 +67,10 @@ async function processSignal(signal) {
     }
   }
 
-  // ── Resolve entry price ────────────────────────────────────────────────────
-  let entryPrice = signal.price;
-  if (!entryPrice) {
-    try { entryPrice = await Bybit.getPrice(symbol); }
-    catch (e) { console.error('Price fetch failed:', e.message); return; }
-  }
+  // ── Resolve entry price — always fetch live to avoid stale bar-close SL rejection ──
+  let entryPrice;
+  try { entryPrice = await Bybit.getPrice(symbol); }
+  catch (e) { console.error('Price fetch failed:', e.message); return; }
 
   // ── Sizing — effCash from signal engine (volMult×signalMult×streakMult) ───
   const notional    = signal.effCash ?? config.baseCash;
