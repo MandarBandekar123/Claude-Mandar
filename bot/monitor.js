@@ -1,4 +1,4 @@
-import { Bybit }         from './bybit.js';
+import { Exchange }      from './exchange.js';
 import { Tracker }       from './tracker.js';
 import { Telegram }      from './telegram.js';
 import { config }        from './config.js';
@@ -16,7 +16,7 @@ async function checkPositions() {
 
   for (const trade of open) {
     try {
-      const pos = await Bybit.getPosition(trade.symbol);
+      const pos = await Exchange.getPosition(trade.symbol);
 
       // Position closed on Bybit (TP/SL hit)
       if (!pos) {
@@ -30,7 +30,7 @@ async function checkPositions() {
 
 async function handleClose(trade) {
   // Get actual exit from Bybit closed P&L
-  const fill = await Bybit.getLastFill(trade.symbol);
+  const fill = await Exchange.getLastFill(trade.symbol);
   const exitPrice  = fill ? parseFloat(fill.avgExitPrice) : 0;
   const closedPnl  = fill ? parseFloat(fill.closedPnl)    : 0;
 

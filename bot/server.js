@@ -3,7 +3,7 @@ import express       from 'express';
 import cron          from 'node-cron';
 import { exec }      from 'child_process';
 import { config }    from './config.js';
-import { Bybit }     from './bybit.js';
+import { Exchange }  from './exchange.js';
 import { Tracker }   from './tracker.js';
 import { Telegram }  from './telegram.js';
 import { startMonitor }                  from './monitor.js';
@@ -40,7 +40,7 @@ async function processSignal(signal) {
     const open = Tracker.getOpen();
     if (!open.length) { console.log('exit_all: no open trades'); return; }
     for (const t of open) {
-      try { await Bybit.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
+      try { await Exchange.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
       catch (e) { console.error('exit_all error:', e.message); }
     }
     return;
@@ -51,7 +51,7 @@ async function processSignal(signal) {
     const trades = Tracker.getOpen().filter(t => t.side === targetSide);
     if (!trades.length) { console.log(`${side}: no matching open trade`); return; }
     for (const t of trades) {
-      try { await Bybit.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
+      try { await Exchange.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
       catch (e) { console.error(`${side} error:`, e.message); }
     }
     return;
@@ -62,14 +62,14 @@ async function processSignal(signal) {
   // ── Close opposite position (flip) ────────────────────────────────────────
   for (const t of Tracker.getOpen()) {
     if ((t.side === 'Buy' && side === 'Sell') || (t.side === 'Sell' && side === 'Buy')) {
-      try { await Bybit.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
+      try { await Exchange.closePosition({ symbol: t.symbol, side: t.side, qty: t.qty }); }
       catch (e) { console.error('Flip-close error:', e.message); }
     }
   }
 
   // ── Resolve entry price — always fetch live to avoid stale bar-close SL rejection ──
   let entryPrice;
-  try { entryPrice = await Bybit.getPrice(symbol); }
+  try { entryPrice = await Exchange.getPrice(symbol); }
   catch (e) { console.error('Price fetch failed:', e.message); return; }
 
   // ── Sizing — effCash from signal engine (volMult×signalMult×streakMult) ───
@@ -95,14 +95,14 @@ async function processSignal(signal) {
     margin, entryFee, netIfTp, netIfSl,
   }));
 
-  // ── Place Bybit order ──────────────────────────────────────────────────────
+  // ── Place order ───────────────────────────────────────────────────────────
   let orderId;
   try {
-    orderId = await Bybit.placeOrder({ side, symbol, qty, tpPrice, slPrice });
+    orderId = await Exchange.placeOrder({ side, symbol, qty, tpPrice, slPrice });
     await Telegram.send(Telegram.orderPlaced({ side, symbol, orderId }));
   } catch (e) {
-    console.error('Bybit order error:', e.message);
-    await Telegram.send(`⚠️ Bybit order FAILED: ${e.message}`);
+    console.error('Order error:', e.message);
+    await Telegram.send(`⚠️ Order FAILED: ${e.message}`);
     return;
   }
 
@@ -167,7 +167,7 @@ cron.schedule('0 8 * * *', async () => {
     let currentPrice = null;
     let unrealisedPnl = 0;
     if (open.length) {
-      try { currentPrice = await Bybit.getPrice(config.symbol); } catch {}
+      try { currentPrice = await Exchange.getPrice(config.symbol); } catch {}
       if (currentPrice) {
         const t = open[0];
         unrealisedPnl = t.side === 'Buy'
@@ -209,9 +209,9 @@ cron.schedule('0 8 * * 1', async () => {
 // ── Startup ───────────────────────────────────────────────────────────────────
 async function start() {
   try {
-    await Bybit.setLeverage(config.symbol, config.leverage);
-    console.log(`Bybit ${config.bybitDemo ? 'DEMO' : 'LIVE'} ready | ${config.leverage}x leverage on ${config.symbol}`);
-  } catch (e) { console.error('Bybit init error:', e.message); }
+    await Exchange.setLeverage(config.symbol, config.leverage);
+    console.log(`[${config.exchange.toUpperCase()}] ready | ${config.leverage}x leverage on ${config.symbol}`);
+  } catch (e) { console.error('Exchange init error:', e.message); }
 
   startMonitor();
 

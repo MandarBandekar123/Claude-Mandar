@@ -23,7 +23,7 @@ const P = {
   minVelZ:     0.5,   // minimum price velocity Z-score
   detrendLen:  50,    // SMA detrend length
   ddResetPct:  5.0,   // streak reset drawdown %
-  baseCash:    3000.0,
+  baseCash:    config.baseCash,
   amMultCap:   3.0,
   maxRiskPct:  200.0,  // effCash never exceeds 200% of equity (margin = 8% at 25x)
   htfEMALen:   4800,  // 200-day EMA proxy on 1H bars

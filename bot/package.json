@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "bybit-api": "^3.10.0",
+    "ccxt": "^4.4.0",
     "express": "^4.18.2",
     "node-telegram-bot-api": "^0.65.1",
     "better-sqlite3": "^9.4.3",

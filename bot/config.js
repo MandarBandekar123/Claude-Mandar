@@ -5,20 +5,27 @@ export const config = {
   telegramToken:  process.env.TELEGRAM_TOKEN,
   telegramChatId: process.env.TELEGRAM_CHAT_ID,
 
+  // Exchange selector: 'bybit' (default) or 'toobit'
+  exchange:       (process.env.EXCHANGE || 'bybit').toLowerCase(),
+
   // Bybit
   bybitKey:       process.env.BYBIT_API_KEY,
   bybitSecret:    process.env.BYBIT_API_SECRET,
-  bybitDemo:      process.env.BYBIT_DEMO !== 'false', // default: demo trading (api-demo.bybit.com)
-
-  // Strategy
-  symbol:         'ETHUSDT',
-  baseCash:       15000,       // base notional ($600 margin at 25x)
-  leverage:       25,          // 25x leverage
-  slPct:          2.0,
-  tpPct:          5.0,
+  bybitDemo:      process.env.BYBIT_DEMO !== 'false',
   bybitCategory:  'linear',
 
-  // Bybit fees (demo mirrors live)
+  // Toobit
+  toobitKey:      process.env.TOOBIT_API_KEY,
+  toobitSecret:   process.env.TOOBIT_API_SECRET,
+
+  // Strategy
+  symbol:         process.env.SYMBOL || 'ETHUSDT',
+  baseCash:       parseFloat(process.env.BASE_CASH) || 3000,
+  leverage:       parseInt(process.env.LEVERAGE)    || 25,
+  slPct:          2.0,
+  tpPct:          5.0,
+
+  // Fees
   takerFee:       0.0006,
   makerFee:       0.0001,
 
