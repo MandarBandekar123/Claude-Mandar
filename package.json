@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "dependencies": {
     "@mathieuc/tradingview": "github:Mathieu2301/TradingView-API"
   }

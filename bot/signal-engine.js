@@ -301,7 +301,16 @@ export async function runSignalCheck(onSignal) {
     return;
   }
 
-  if (!expansionEdge) return; // no new signal this bar
+  // Log indicator snapshot every bar so we can see how close we are to a signal
+  const reasons = [];
+  if (!expansionEdge) reasons.push(`envExpZ=${envExpZcur?.toFixed(2)} (need crossover ${P.expansionZ})`);
+  if (Math.abs(priceVelZ) <= P.minVelZ) reasons.push(`PVZ=${priceVelZ?.toFixed(2)} (need >${P.minVelZ})`);
+  if (sideways) reasons.push(`ADX=${adxVal?.toFixed(1)} (sideways)`);
+  if (!regimeBull) reasons.push(`bear regime`);
+  if (!expansionEdge) {
+    console.log(`[${barTime}] No signal — ${reasons.join(', ')}`);
+    return;
+  }
 
   const absPVZ     = Math.abs(priceVelZ);
   const signalMult = Math.max(1.0, Math.min(3.0, absPVZ));
