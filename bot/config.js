@@ -21,6 +21,7 @@ export const config = {
   // Strategy
   symbol:         process.env.SYMBOL || 'ETHUSDT',
   baseCash:       parseFloat(process.env.BASE_CASH) || 3000,
+  startEquity:    parseFloat(process.env.START_EQUITY) || 10000, // account starting capital
   leverage:       parseInt(process.env.LEVERAGE)    || 25,
   slPct:          2.0,
   tpPct:          5.0,

@@ -165,9 +165,9 @@ function compute(candles) {
 
 // ── Streak state (persisted to signal-state.json) ────────────────────────────
 function loadState() {
-  if (!existsSync(STATE_FILE)) return { streakMult: 1.0, peakEquity: 10000 };
+  if (!existsSync(STATE_FILE)) return { streakMult: 1.0, peakEquity: config.startEquity };
   try   { return JSON.parse(readFileSync(STATE_FILE, 'utf8')); }
-  catch { return { streakMult: 1.0, peakEquity: 10000 }; }
+  catch { return { streakMult: 1.0, peakEquity: config.startEquity }; }
 }
 
 function saveState(s) {
@@ -180,7 +180,7 @@ export function getState() { return loadState(); }
 export function updateStreak(netPnl) {
   const s      = loadState();
   const total  = parseFloat(Tracker.stats()?.netPnl ?? 0);
-  const equity = 10000 + total;
+  const equity = config.startEquity + total;
 
   if (equity > s.peakEquity) s.peakEquity = equity;
   const ddPct = (s.peakEquity - equity) / s.peakEquity * 100;
@@ -316,7 +316,7 @@ export async function runSignalCheck(onSignal) {
   const signalMult = Math.max(1.0, Math.min(3.0, absPVZ));
   const { streakMult } = loadState();
   const totalPnl   = parseFloat(Tracker.stats()?.netPnl ?? 0);
-  const equity     = 10000 + totalPnl;
+  const equity     = config.startEquity + totalPnl;
   const maxCash    = equity * P.maxRiskPct / 100;
   // Equity-based sizing: use full account equity as base, scale with multipliers,
   // hard-capped at maxRiskPct% of equity. Grows/shrinks with account automatically.

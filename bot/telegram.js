@@ -151,11 +151,13 @@ ${lines.join('\n')}
     }
 
     // ── Sizing state block ────────────────────────────────────────────────────
-    const nextEff = fmt(3000 * 1.2 * 2.0 * streakMult, 0); // approx next trade size
+    // Equity-based sizing: base = full equity, capped at 150% of equity
+    const nextEff = fmt(Math.min(equity * 1.0 * streakMult, equity * 1.5), 0);
+    const maxEff  = fmt(equity * 1.5, 0);
     const sizingBlock =
 `⚙️ <b>SIZING STATE</b>
   Streak mult:  ${fmt(streakMult, 2)}×
-  Est. effCash: ~$${nextEff}  (base × vol × sig × streak)
+  Est. next:    ~$${nextEff}  (equity × vol × sig × streak, cap $${maxEff})
   Account eq.:  ~$${fmt(equity, 0)}
   DD from peak: ${fmt(ddPct, 1)}%  (peak $${fmt(peakEquity, 0)})`;
 

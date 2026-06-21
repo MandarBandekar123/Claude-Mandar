@@ -11,7 +11,7 @@ const P = {
   expansionZ: 1.0, minVelZ: 0.5,
   detrendLen: 50, envSmoothLen: 10, envSlopeLen: 10, envBaseLen: 150,
   priceVelLen: 5, volSMALen: 200, htfEMALen: 4800, warmup: 250,
-  baseCash: 15000, amMultCap: 3.0, maxRiskPct: 200.0,
+  amMultCap: 3.0, maxRiskPct: 150.0,
   leverage: 25, tpFee: 0.0006, slFee: 0.0006,
 };
 
@@ -177,7 +177,7 @@ for (let i = P.warmup + 1; i < n; i++) {
   const volMult  = Math.max(1.0, Math.min(1.5, volRatio));
   const signalMult = Math.max(1.0, Math.min(3.0, absPVZ));
   const maxCash = equity * P.maxRiskPct / 100;
-  const effCash = Math.min(P.baseCash * volMult * signalMult * streakMult, maxCash);
+  const effCash = Math.min(equity * volMult * signalMult * streakMult, maxCash);
   const notional = effCash;
 
   if (priceVel > 0 && regimeBull) {

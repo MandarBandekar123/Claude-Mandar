@@ -161,7 +161,7 @@ cron.schedule('0 8 * * *', async () => {
     const allStats   = Tracker.stats();
     const { streakMult, peakEquity } = getState();
     const totalPnl   = parseFloat(allStats?.netPnl ?? 0);
-    const equity     = 10000 + totalPnl;
+    const equity     = config.startEquity + totalPnl;
     const ddPct      = peakEquity > equity ? (peakEquity - equity) / peakEquity * 100 : 0;
 
     let currentPrice = null;
@@ -202,7 +202,7 @@ cron.schedule('0 8 * * 1', async () => {
   const since    = new Date(Date.now() - 7 * 86400000).toISOString();
   const stats    = Tracker.stats(since);
   const allStats = Tracker.stats();
-  const balance  = 10000 + parseFloat(allStats?.netPnl ?? 0);
+  const balance  = config.startEquity + parseFloat(allStats?.netPnl ?? 0);
   await Telegram.send(Telegram.weeklyReport(stats, balance));
 });
 
