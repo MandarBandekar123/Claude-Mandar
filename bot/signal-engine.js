@@ -25,7 +25,7 @@ const P = {
   ddResetPct:  5.0,   // streak reset drawdown %
   baseCash:    config.baseCash,
   amMultCap:   3.0,
-  maxRiskPct:  200.0,  // effCash never exceeds 200% of equity (margin = 8% at 25x)
+  maxRiskPct:  150.0,  // effCash capped at 150% of equity → max SL = 3% of account at 25x
   htfEMALen:   4800,  // 200-day EMA proxy on 1H bars
   envSmoothLen: 10,
   envSlopeLen:  10,
@@ -318,7 +318,9 @@ export async function runSignalCheck(onSignal) {
   const totalPnl   = parseFloat(Tracker.stats()?.netPnl ?? 0);
   const equity     = 10000 + totalPnl;
   const maxCash    = equity * P.maxRiskPct / 100;
-  const effCash    = Math.min(P.baseCash * volMult * signalMult * streakMult, maxCash);
+  // Equity-based sizing: use full account equity as base, scale with multipliers,
+  // hard-capped at maxRiskPct% of equity. Grows/shrinks with account automatically.
+  const effCash    = Math.min(equity * volMult * signalMult * streakMult, maxCash);
 
   const meta = {
     effCash,
