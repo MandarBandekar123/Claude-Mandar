@@ -42,9 +42,14 @@ async function handleClose(trade) {
     : (trade.entryPrice - exitPrice) * trade.qty;
   const netPnl     = grossPnl - trade.entryFee - exitFee;
 
-  const closeReason = exitPrice >= trade.tpPrice - 0.5 ? 'TP ✅'
-                    : exitPrice <= trade.slPrice + 0.5 ? 'SL 🛑'
-                    : 'Signal flip 🔄';
+  // Label by proximity to TP/SL price — works for both long and short.
+  // (Old logic assumed long-only: for a short, TP is below entry and SL above,
+  //  so the >= / <= comparisons mislabeled short SL hits as 'TP'.)
+  const nearTp = Math.abs(exitPrice - trade.tpPrice) <= trade.tpPrice * 0.003;
+  const nearSl = Math.abs(exitPrice - trade.slPrice) <= trade.slPrice * 0.003;
+  const closeReason = nearTp ? 'TP ✅'
+                    : nearSl ? 'SL 🛑'
+                    : (netPnl >= 0 ? 'Exit +✅' : 'Exit -🛑');
 
   const closedAt = new Date().toISOString();
   Tracker.close({
